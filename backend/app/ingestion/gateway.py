@@ -27,6 +27,7 @@ async def request(
     params: dict[str, Any],
     rate_per_second: float,
     headers: dict[str, str] | None = None,
+    method: str = "default",
 ) -> RawResponse:
     if not get_settings().live_mode:
         # Fixture mode is offline by construction: no cache, no network.
@@ -42,7 +43,7 @@ async def request(
         return await asyncio.shield(existing)
 
     task = asyncio.create_task(
-        _fetch_and_cache(provider, url, params, rate_per_second, headers, key)
+        _fetch_and_cache(provider, url, params, rate_per_second, headers, key, method)
     )
     _inflight[key] = task
     try:
@@ -58,8 +59,9 @@ async def _fetch_and_cache(
     rate_per_second: float,
     headers: dict[str, str] | None,
     key: str,
+    method: str,
 ) -> RawResponse:
-    response = await http.fetch(provider, url, params, rate_per_second, headers)
+    response = await http.fetch(provider, url, params, rate_per_second, headers, method)
     await cache.put(key, response)
     return response
 

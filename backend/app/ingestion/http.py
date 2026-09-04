@@ -28,6 +28,11 @@ RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 BASE_BACKOFF_SECONDS = 1.0
 MAX_BACKOFF_SECONDS = 16.0
 
+# TronGrid sends no Retry-After and no rate-limit headers — the suspension duration
+# appears only in the prose body, measured at ~5.5s. A 1/2/4s backoff spends every retry
+# inside that window and then fails over for no reason, so throttling gets its own floor.
+THROTTLE_FLOOR_SECONDS = 6.0
+
 _client: httpx.AsyncClient | None = None
 
 
@@ -49,9 +54,11 @@ async def close_http_client() -> None:
     _client = None
 
 
-def _backoff(attempt: int, retry_after: float | None) -> float:
+def _backoff(attempt: int, retry_after: float | None, throttled: bool = False) -> float:
     if retry_after is not None:
         return min(retry_after, MAX_BACKOFF_SECONDS)
+    if throttled:
+        return min(THROTTLE_FLOOR_SECONDS * (attempt + 1), MAX_BACKOFF_SECONDS)
     # Jitter keeps concurrent workers from retrying in lockstep.
     jitter = 0.5 + random.random() / 2  # noqa: S311  # jitter, not a security decision
     return float(min(BASE_BACKOFF_SECONDS * (2**attempt), MAX_BACKOFF_SECONDS) * jitter)
@@ -71,6 +78,7 @@ async def fetch(
     params: dict[str, Any],
     rate_per_second: float,
     headers: dict[str, str] | None = None,
+    method: str = "default",
 ) -> RawResponse:
     """One provider request, with rate limiting and retries.
 
@@ -82,7 +90,7 @@ async def fetch(
     last_error = "unknown"
 
     for attempt in range(settings.http_max_retries + 1):
-        await ratelimit.acquire(provider, rate_per_second)
+        await ratelimit.acquire(ratelimit.bucket(provider, method), rate_per_second)
         try:
             response = await client.get(url, params=params, headers=headers)
         except (httpx.TimeoutException, httpx.TransportError) as exc:
@@ -95,7 +103,7 @@ async def fetch(
             raise ProviderUnavailable(f"{provider} unreachable: {last_error}") from exc
 
         if response.status_code in RETRYABLE_STATUS:
-            wait = _backoff(attempt, _retry_after(response))
+            wait = _backoff(attempt, _retry_after(response), throttled=response.status_code == 429)
             last_error = f"HTTP {response.status_code}"
             log.warning(
                 "%s returned %d (attempt %d), backing off %.1fs",

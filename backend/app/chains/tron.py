@@ -113,9 +113,12 @@ async def _paginate(path: str, address: str, window: TimeWindow | None) -> Fetch
         params["min_timestamp"] = window.start_ms
         params["max_timestamp"] = window.end_ms
 
+    # TronGrid meters each RPC method independently, so the bucket is the path template.
+    method = path.rsplit("/", 1)[-1] or "transactions"
+
     for page in range(settings.max_pages_per_fetch):
         response = await gateway.request(
-            PROVIDER, url, dict(params), settings.trongrid_rate_per_second, _headers()
+            PROVIDER, url, dict(params), settings.trongrid_rate_per_second, _headers(), method
         )
         result.responses.append(response)
         payload = response.json()
@@ -149,6 +152,6 @@ async def fetch_account(address: str) -> FetchResult:
     settings = get_settings()
     url = f"{settings.trongrid_base_url}/v1/accounts/{address}"
     response = await gateway.request(
-        PROVIDER, url, {}, settings.trongrid_rate_per_second, _headers()
+        PROVIDER, url, {}, settings.trongrid_rate_per_second, _headers(), "accounts"
     )
     return FetchResult(responses=[response], record_count=1, provider_used=PROVIDER)

@@ -35,15 +35,20 @@ class Settings(BaseSettings):
     etherscan_api_key: str = ""
     blockscout_base_url: str = "https://eth.blockscout.com"
 
-    # Measured 2026-09-05: unauthenticated TronGrid enforces allowed_rps(3) and suspends
-    # the caller for 5s on breach. An API key raises this; see docs/research/OQ-01.
-    trongrid_rate_per_second: float = 3.0
+    # Measured 2026-09-05 (docs/research/OQ-01-provider-rate-limits.md). TronGrid meters
+    # per RPC method with no burst tolerance: 2.0s spacing succeeded 100% of the time,
+    # 1.2s only 67%. Buckets are per method, so the aggregate rate is higher than this.
+    trongrid_rate_per_second: float = 0.5
+    # Blockscout showed no throttling across 195 requests up to 11.8/s; kept conservative.
+    blockscout_rate_per_second: float = 5.0
+    # Etherscan now rejects keyless requests entirely, so this only applies with a key.
     etherscan_rate_per_second: float = 4.0
-    blockscout_rate_per_second: float = 4.0
 
     http_timeout_seconds: float = 30.0
     http_max_retries: int = 3
-    cache_ttl_seconds: int = 3600
+    # The single highest-leverage performance lever: a closed block range never changes,
+    # so re-fetching it is pure waste. 24h.
+    cache_ttl_seconds: int = 86_400
 
     # An address with more transfers than this is almost certainly a service; the
     # truncation flag feeds attribution as a positive signal rather than being a failure.
@@ -53,10 +58,15 @@ class Settings(BaseSettings):
 
     cors_origins: str = "http://localhost"
 
-    trace_max_depth: int = 5
+    # Defaults tuned to the measured provider rates: at 0.5 req/s per TronGrid method,
+    # 120s buys roughly 60 uncached addresses. Depth 5 / fan-out 20 is the design target
+    # and remains available; these are what fits the time budget on a cold cache.
+    trace_max_depth: int = 3
     trace_taint_threshold: float = 0.01
     trace_edge_budget: int = 5000
-    trace_fanout_cap: int = 20
+    trace_fanout_cap: int = 8
+    # Hard ceiling on uncached addresses per trace, so a run cannot silently overrun.
+    trace_address_budget: int = 60
     graph_node_cap: int = 500
 
     evidence_storage_path: str = "/data/evidence"
