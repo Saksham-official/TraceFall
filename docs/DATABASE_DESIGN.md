@@ -291,6 +291,13 @@ discovered address. That lookup must be fast and is best served from an in-memor
 labelled addresses loaded once per job, backed by `address_labels`. Doing it as a per-address
 database round-trip inside the BFS loop is the most likely performance mistake in this system.
 
+**Cascade behaviour.** Case-scoped children (`case_addresses`, `case_assignments`,
+`case_notes`, `case_timeline`, `analysis_runs`, `alerts`, `reports`) and analysis-scoped
+children (`traces`, `trace_nodes`, `trace_edges`, `attributions`, `pattern_findings`,
+`risk_assessments`) cascade on delete, so a documented deletion completes cleanly.
+`evidence_items` deliberately does **not** cascade: deleting a case that still holds evidence
+fails loudly rather than silently destroying the evidence chain.
+
 **Partitioning.** Not needed at MVP volumes (DATA_ARCHITECTURE §10). If `transfers` exceeds
 ~100M rows, range-partition by `block_time`. Documented, not built.
 
@@ -303,7 +310,9 @@ Not merely in application code, because these are the product's correctness guar
 1. `attributions`: CHECK constraint binding `tier` to its required evidence, as described in §4.
 2. `risk_assessments`: CHECK that `signals` is a non-empty JSONB array.
 3. `transfers`: UNIQUE `(chain_id, tx_hash, transfer_index)` — idempotent ingestion.
-4. `audit_log` and `evidence_items`: application role has no UPDATE/DELETE grant.
+4. `audit_log` and `evidence_items`: append-only, enforced by `BEFORE UPDATE OR DELETE`
+   triggers that raise (ADR-015). Production should additionally run the application under a
+   role without UPDATE/DELETE on these tables.
 5. `pattern_findings`: `false_positive_note` NOT NULL.
 6. All monetary quantities: `NUMERIC`, never `float`/`double precision`.
 7. All timestamps: `timestamptz`, stored UTC.

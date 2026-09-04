@@ -6,17 +6,19 @@
 
 ## Current phase
 
-> ## PHASE 1 — REPOSITORY FOUNDATION (in progress)
-> Phase 0 (planning) is complete. The repository now holds a running skeleton: FastAPI with a
-> health endpoint, a worker placeholder, a React/TypeScript SPA placeholder, Docker Compose,
-> CI, and secret scanning. **No product features are implemented.**
+> ## PHASE 3 — BLOCKCHAIN INGESTION (next)
+> Phases 0–2 are complete. The repository holds a running backend: authentication with
+> RBAC, the full 28-table schema with its integrity constraints, case and suspect-address
+> management, address validation for TRON and Ethereum, audit logging, and the Redis job
+> queue with a worker running a stub pipeline. **No blockchain data is retrieved yet.**
 >
-> One acceptance item is outstanding: `docker compose up` has not been run because Docker is
-> not installed on the development machine. See Phase 1 in
-> [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
+> 100 backend tests pass against a real PostgreSQL and Redis. One item is outstanding from
+> Phase 1: `docker compose up` has not been run because Docker is not installed on the
+> development machine.
 >
-> Next is **Phase 2 — Backend foundation** (auth, schema, case CRUD, job scaffold). Read
-> [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md) first. Update the phase table in
+> Next is **Phase 3 — Blockchain ingestion** (chain adapters, retrieval, caching, evidence
+> capture, the fixture cache). Read [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md) first —
+> OQ-01 and OQ-02 gate that phase. Update the phase table in
 > `IMPLEMENTATION_PLAN.md` when a phase completes, and update this banner when the phase
 > changes.
 

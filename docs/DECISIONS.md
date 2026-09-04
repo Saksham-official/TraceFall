@@ -304,3 +304,57 @@ information disclosure this system can make.
 
 **Trade-offs.** Slightly more audit volume, and a marginally more confusing debugging experience
 when a permission is genuinely misconfigured. Both are cheap next to the leak.
+
+---
+
+## ADR-014 — No repository layer over SQLAlchemy
+
+**Status:** Accepted · **Date:** 2026-09-05 · **Supersedes:** the `db/repositories/` module
+listed in `IMPLEMENTATION_PLAN.md` Phase 2
+
+**Context.** The Phase 2 file list included `db/repositories/*.py`. Implementing it meant a
+class per table wrapping queries that SQLAlchemy already expresses directly.
+
+**Options.** A repository class per aggregate · query directly in the route with shared
+helpers for the rules that repeat.
+
+**Chosen:** no repository layer. Routes query through the session; the one rule that repeats
+and matters — case isolation — lives in `core/deps.get_accessible_case` and
+`api/v1/cases._visible`.
+
+**Why.** A repository over an ORM is an abstraction with one implementation, wrapping an API
+that is already a query abstraction. It would add a file per table and a layer to step
+through at 3am, and buy a datastore swap we have committed against (ADR-003). Centralising
+the *security* rule is worth doing; centralising `session.get` is not.
+
+**Trade-offs.** Query logic sits closer to the routes, so a repeated query could drift. The
+mitigation is the isolation test suite, which exercises every case-scoped endpoint against
+the actual rule rather than against a shared abstraction.
+
+---
+
+## ADR-015 — Append-only enforced by triggers, not role grants
+
+**Status:** Accepted · **Date:** 2026-09-05 · **Amends:** `DATABASE_DESIGN.md` section 9,
+rule 4
+
+**Context.** `audit_log` and `evidence_items` must be append-only. The design specified
+database grants: the application role holds INSERT and SELECT and no UPDATE or DELETE.
+
+**Options.** Role grants (a non-owner application role) · `BEFORE UPDATE OR DELETE` triggers
+that raise · both.
+
+**Chosen:** triggers now; grants documented as an additional production layer.
+
+**Why.** Grants require a second database role that is not the table owner, created outside
+the migration by a superuser — which makes the guarantee depend on deployment steps a
+developer can skip, and makes it **untestable in the suite**. A trigger travels with the
+schema, applies to every role including the owner, and is asserted directly by
+`test_audit_log_is_append_only`. An invariant that is verified on every CI run is worth more
+than a stronger one that nobody checks.
+
+**Trade-offs.** A superuser can drop the trigger, where a grant would also have to be
+re-granted — but a superuser can do both, so the difference is small. Triggers add a small
+per-row cost on tables that are insert-only anyway. Production should still run the
+application under a restricted role; that is defence in depth on top of this, not instead
+of it.

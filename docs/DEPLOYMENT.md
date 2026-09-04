@@ -85,7 +85,7 @@ cp .env.example .env
 ./scripts/generate-secret.sh >> .env      # writes SECRET_KEY
 docker compose up -d
 docker compose exec api alembic upgrade head
-docker compose exec api python -m app.cli load-labels
+docker compose exec api python -m app.cli load-labels   # Phase 7 onward
 docker compose exec api python -m app.cli create-admin   # interactive, prompts for password
 open http://localhost
 ```

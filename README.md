@@ -5,10 +5,10 @@
 Smart India Hackathon 2026 · Problem Statement **SIH26183** · Ministry of Home Affairs ·
 Blockchain & Cybersecurity
 
-> ### Status: Phase 1 — repository foundation
-> Planning is complete and the repository skeleton runs, but **no product features are
-> implemented**: the API serves a health endpoint, the SPA serves a placeholder page, and the
-> worker is a process stub. See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
+> ### Status: Phase 2 complete — backend foundation
+> Authentication, the full database schema, case management, address validation, audit
+> logging, and the job queue are implemented and tested. **No blockchain data is retrieved
+> yet** — that is Phase 3. See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 
 ---
 
@@ -123,15 +123,25 @@ open http://localhost
 
 `LIVE_MODE=false` is the default, so a fresh clone needs no API keys.
 
+Migrations and the first admin account:
+
+```sh
+docker compose exec api alembic upgrade head
+docker compose exec api python -m app.cli create-admin   # interactive; no seeded credentials
+```
+
 Backend checks: `cd backend && pip install -e '.[dev]' && ruff check . && mypy app && pytest`
 Frontend checks: `cd frontend && npm ci && npm run lint && npm run typecheck && npm test`
 
 ## Current phase
 
-**Phase 1 — Repository foundation.** Tooling, containers, CI, and secret scanning are in place.
+**Phase 2 — Backend foundation. Complete.** JWT authentication with role-based access and
+case isolation, the 28-table schema with its integrity constraints enforced in the database,
+case and suspect-address management, TRON and Ethereum address validation, append-only audit
+logging, and the Redis job queue. 100 tests pass.
 
-Next: Phase 2 (backend foundation — auth, schema, case CRUD, job scaffold), after resolving the
-blocking items in [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md).
+Next: Phase 3 (blockchain ingestion), after resolving OQ-01 and OQ-02 in
+[docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md).
 
 ## A note on honesty
 

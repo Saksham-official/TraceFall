@@ -70,6 +70,12 @@ defaults reach the exchange endpoints or stop short. Adjust once, with the reaso
 ## Blocking Phase 7 — Attribution *(highest-risk cluster)*
 
 ### OQ-07 · Which label datasets have licences that actually permit our use?
+**Partially answered 2026-09-05** — see
+[research/OQ-08-tron-label-coverage.md](research/OQ-08-tron-label-coverage.md). OFAC via the
+`0xB10C` repository is MIT and usable. Several candidates are ruled out. **One answer is still
+missing: TronScan's terms of service could not be retrieved** (the page is a client-side route
+and the host returns 403 to automated fetches). Someone must open it in a browser before we
+rely on TronScan labels.
 **Why it matters.** [DATA_SOURCES.md §2](DATA_SOURCES.md) names candidate sources but explicitly
 does **not** confirm their licences. Several block explorers prohibit bulk use of their label
 data. Ingesting a dataset we are not permitted to use is both a legal problem and an
@@ -78,7 +84,16 @@ embarrassment in a Ministry of Home Affairs problem statement.
 `label_sources` row. **No dataset is ingested until its licence is confirmed and written down.**
 
 ### OQ-08 · Is there adequate public label coverage for **TRON** exchange hot wallets?
-**The single biggest unknown in the project.** Public labelling for Ethereum is good. For TRON —
+**Answered 2026-09-05: yes, by curation.** Full findings in
+[research/OQ-08-tron-label-coverage.md](research/OQ-08-tron-label-coverage.md). Coverage is
+thin relative to Ethereum but sufficient, and **ADR-001 stands**. Three things carry forward
+into Phase 7: base58check validation on ingest is mandatory (a leading public dataset contains
+invalid addresses); hot and cold wallets must be separated by observed behaviour rather than
+trusted from a label; and the compiled dataset that has the best coverage is licensed in a way
+that blocks ingestion, so labels must be re-derived from independent observation. That last
+point is a legal judgement that needs a named signer in an ADR.
+
+**Original framing, retained for context:** Public labelling for Ethereum is good. For TRON —
 our primary chain, chosen deliberately in ADR-001 — it is materially thinner, and attribution is
 the product.
 **Why it matters.** If TRON hot-wallet coverage is poor, `CONFIRMED` attribution mostly fails on

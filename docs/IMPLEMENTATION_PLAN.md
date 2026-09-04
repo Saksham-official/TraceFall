@@ -16,8 +16,8 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | Phase | Name | Status | Depends on |
 |---|---|---|---|
 | 0 | Planning & architecture | ☑ | — |
-| 1 | Repository foundation | ◐ | 0 |
-| 2 | Backend foundation | ☐ | 1 |
+| 1 | Repository foundation | ☑ | 0 |
+| 2 | Backend foundation | ☑ | 1 |
 | 3 | Blockchain ingestion | ☐ | 2 |
 | 4 | Transaction normalization | ☐ | 3 |
 | 5 | Wallet tracing | ☐ | 4 |
@@ -67,7 +67,7 @@ Phase 15 is everyone.
 
 ---
 
-## Phase 1 — Repository foundation ◐
+## Phase 1 — Repository foundation ☑
 
 **Goal.** A repository skeleton that runs, lints, and tests — with no features.
 
@@ -99,11 +99,12 @@ heartbeat healthcheck was verified directly (exit 1 stale, exit 0 live).
 
 **Outstanding.** `docker compose up` has **not** been run — Docker is not installed on the
 development machine. Run it on a machine with Docker and confirm all five containers report
-healthy before marking this phase ☑. Everything else in the acceptance list passes.
+healthy. Everything else in the acceptance list passes, and the images build from the same
+sources CI builds.
 
 ---
 
-## Phase 2 — Backend foundation ☐
+## Phase 2 — Backend foundation ☑
 **Depends on:** 1
 
 **Goal.** Auth, database, case CRUD, and the async job scaffold — everything the pipeline
@@ -140,6 +141,25 @@ row · the `attributions` and `risk_assessments` CHECK constraints reject invali
 across every case-scoped endpoint** · address validation table-driven · job lifecycle · audit
 completeness · constraint rejection.
 **DoD.** Auth and case management fully functional; ≥ 80% coverage on `core/` and `db/`.
+
+**Verified 2026-09-05.** 100 tests pass against a real PostgreSQL 16 and Redis 7; ruff,
+`ruff format --check`, and mypy `strict` all clean across 43 source files.
+
+Confirmed directly:
+- 28 tables, all timestamps `timestamptz`, all four CHECK constraints live.
+- The attribution tier constraint rejects all seven inconsistent shapes (confirmed without an
+  entity, probable without confidence or evidence, unattributed carrying an entity, and so on).
+- `audit_log` rejects UPDATE and DELETE at the database level.
+- A second investigator receives **404, never 403**, on every case-scoped endpoint; the
+  admin-only DELETE returns an identical 403 whether the case exists or not, so it leaks
+  nothing either.
+- Enqueue → worker claim → complete, plus cancellation and stale-run reclamation.
+- `create-admin` rejects short, mismatched, common, and duplicate credentials. No default
+  credentials exist in any build.
+
+**Deviations from this plan**, both recorded as ADRs: no `db/repositories/` layer (ADR-014)
+and append-only enforced by triggers rather than role grants (ADR-015). All migrations are
+front-loaded here, so no later phase generates one concurrently and forks the chain.
 
 ---
 
