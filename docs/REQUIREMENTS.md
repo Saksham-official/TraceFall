@@ -163,7 +163,7 @@ phase; `TESTING_STRATEGY.md` maps tests to these IDs. Priority follows
 
 | ID | Requirement | Target | Pri |
 |---|---|---|---|
-| NFR-01 | First actionable result (trace + attribution + risk) for a typical address | < 120 s live; < 15 s from fixture cache | M |
+| NFR-01 | First actionable result (trace + attribution + risk) for a typical address | **Revised 2026-09-05:** < 120 s from fixture cache or a warm cache; live cold-cache traces are bounded by `trace_address_budget` (60 uncached addresses) rather than by wall-clock. Measured provider rates make a 200-address cold trace ~400 s. See `research/OQ-01-provider-rate-limits.md`. | M |
 | NFR-02 | API response time for reads of already-computed results | p95 < 500 ms | M |
 | NFR-03 | Graph render responsive for the default node cap | 500 nodes, interactive | M |
 | NFR-04 | Concurrent analyses supported on demo hardware | ≥ 5 | S |

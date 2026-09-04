@@ -7,12 +7,19 @@
 ## Current phase
 
 > ## PHASE 4 — TRANSACTION NORMALIZATION (next)
-> Phases 0–3 are complete. The backend authenticates, stores cases and suspect addresses,
-> validates TRON and Ethereum addresses, and **retrieves real blockchain data** with
-> caching, rate limiting, retry, failover, evidence capture, and a committed fixture cache
-> that replays offline. **Nothing is normalized, traced, attributed or scored yet.**
+> Phases 0–3 are complete and Phase 10 (frontend) is partially built. The backend
+> authenticates, stores cases and suspect addresses, validates TRON and Ethereum addresses,
+> and **retrieves real blockchain data** with caching, per-method rate limiting, retry,
+> failover, evidence capture, and a committed fixture cache that replays offline. The
+> frontend covers login, dashboard, case and address intake, and analysis progress.
+> **Nothing is normalized, traced, attributed or scored yet.**
 >
-> 136 backend tests pass against a real PostgreSQL and Redis, with no network access.
+> 147 backend tests and 32 frontend tests pass, with no network access.
+>
+> **Provider reality, measured (`docs/research/OQ-01-provider-rate-limits.md`):** TronGrid
+> without a key sustains only 0.5 req/s *per RPC method*; Blockscout is Ethereum's primary
+> because Etherscan now rejects keyless requests. NFR-01's 120-second target holds for a warm
+> or fixture cache, not a cold live trace.
 >
 > Next is **Phase 4 — Transaction normalization**: raw provider payloads become the
 > canonical `Transfer` model. The rules that matter are in

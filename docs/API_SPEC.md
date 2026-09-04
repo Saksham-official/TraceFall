@@ -1,6 +1,9 @@
 # API Specification — TraceFall
 
-**Documentation only.** No implementation in Phase 0.
+**Phases 2-3 of this spec are implemented.** Where this document and the code disagree,
+`backend/app/api/v1/` is the source of truth; the notes below record corrections made after
+building against it. Endpoints for tracing, graph, patterns, attribution, risk, alerts and
+reports are still design-only.
 
 Base URL: `/api/v1` · Content type: `application/json` · Auth: `Authorization: Bearer <JWT>`
 on every endpoint except `/auth/login` and `/health`.
@@ -59,6 +62,10 @@ Codes: `UNAUTHENTICATED` 401 · `FORBIDDEN` 403 · `NOT_FOUND` 404 · `VALIDATIO
 **Rate limiting.** Per user. `429` carries `Retry-After`. Analysis creation is limited more
 tightly than reads.
 
+**As built:** only login is throttled so far (5 attempts per account per 15 minutes), and it
+returns `401` with an explanatory message rather than `429`. General per-user rate limiting
+lands in Phase 12.
+
 ---
 
 ## 2. Auth
@@ -68,7 +75,10 @@ No auth. → `200 { access_token, refresh_token, token_type, expires_in, user }`
 `401 UNAUTHENTICATED` on bad credentials — deliberately identical response for unknown user and
 wrong password.
 
-### `POST /auth/refresh` → new access token.
+### `POST /auth/refresh` → a full `TokenResponse`.
+**As built:** the refresh token is *rotated*, not just exchanged — the presented token is
+revoked and a new one issued, so replaying it fails. The response carries both tokens and the
+user, identical in shape to login.
 ### `POST /auth/logout` → revokes the refresh token.
 ### `GET /auth/me` → current user and role.
 
@@ -88,14 +98,22 @@ wrong password.
 → `201` with the created case. `422` on validation failure.
 
 ### `GET /cases` — list
-Query: `status`, `priority`, `risk_band`, `owner`, `q` (searches case number, references, and
-address strings), `limit`, `cursor`. → `200` paginated. Returns only cases the caller owns or
-is assigned to (NFR-08).
+Query: `status`, `priority`, `q`, `limit`, `cursor`. → `200` paginated. Returns only cases the
+caller owns or is assigned to (NFR-08); `ADMIN` and `ANALYST` see all.
+
+**As built:** `q` matches case number, NCRP reference, FIR reference and title. It does **not**
+search address strings — that needs a join through `case_addresses` and is worth adding.
+`risk_band` and `owner` filters are not implemented (risk scores do not exist yet). Any
+authenticated role including `VIEWER` may list cases.
 
 ### `GET /cases/{case_id}` — detail
-→ `200` with case, addresses, latest analysis run summary, risk summary, alert count, and the
-timeline. `404` if not found *or* not permitted — the API does not distinguish these, to avoid
-leaking case existence.
+→ `200` with the case record. `404` if not found *or* not permitted — the API does not
+distinguish these, to avoid leaking case existence.
+
+**As built:** returns a bare case object. Addresses, analysis runs and the timeline are separate
+calls (`/addresses`, `/analyses`, `/timeline`). Risk summary and alert count do not exist yet.
+Composing them server-side is worth doing once the underlying data exists, to save the client
+four round trips.
 
 ### `PATCH /cases/{case_id}` — update status, priority, title, description.
 ### `POST /cases/{case_id}/notes` — add a note, optionally pinning a finding (FR-06).
@@ -121,10 +139,20 @@ leaking case existence.
 
 → `201`:
 ```json
-{ "id": 8812, "address": "TXn8kL2mQpR4vY7wZ3aB6cD9eF1gH5jK2m", "chain": "TRON",
+{ "id": 8812, "address": "TXn8kL2mQpR4vY7wZ3aB6cD9eF1gH5jK2m",
+  "display_address": "TXn8kL2mQpR4vY7wZ3aB6cD9eF1gH5jK2m", "chain": "TRON",
   "is_contract": false, "role": "SUSPECT",
-  "cross_case_matches": [ { "case_id": "…", "case_number": "TF-2026-0091" } ] }
+  "reported_amount": "40000", "reported_asset_symbol": "USDT",
+  "reported_at": "2026-08-14T09:32:00Z", "added_at": "2026-09-05T12:00:00Z",
+  "cross_case_matches": [ { "case_id": "…", "case_number": "TF-2026-0091", "owner_id": 4 } ] }
 ```
+
+`display_address` is the form to show the user — for Ethereum that is the EIP-55 checksummed
+casing, while `address` is the lowercase canonical form used for lookups.
+
+`reported_amount` and `reported_asset_symbol` echo what the victim reported, stored as given.
+They are converted to raw integer units only once the asset is known, because a token's decimals
+must never be guessed.
 
 `cross_case_matches` implements FR-07 and fires at intake, not later — an investigator should
 learn immediately that another officer is working the same address.
@@ -157,6 +185,11 @@ All parameters optional; defaults from config. → `202`:
 `409 ANALYSIS_IN_PROGRESS` if a run for this address is already active.
 
 ### `GET /analyses/{run_id}` — status and progress (FR-121)
+
+**As built:** the response carries `root_address_id` and `root_address` so a progress screen can
+name the address being analysed. The `stages` array is currently **always empty** — per-stage
+timings are not persisted yet, so a client must derive the stage list from `status` and `stage`.
+Persisting per-stage rows is worth doing when the real stages land.
 
 ```json
 { "id": "3f2b…", "case_id": "…", "status": "RUNNING",
@@ -310,8 +343,14 @@ the response says which was used. → `202 { report_id, status, poll_url }`.
 
 ### `GET /chains` → supported chains and their status.
 ### `GET /entities` → known entities. Query: `type`, `q`.
-### `GET /health` → `{ status, version, providers: [{name, reachable, last_check}], live_mode }`.
+### `GET /health` → `{ status, version, live_mode, queue_reachable, providers[] }`.
 No auth; no internal detail beyond provider reachability.
+
+**As built:** `providers` is empty in fixture mode (nothing is contacted, so an empty list is the
+honest answer) and otherwise reports `{name, reachable, last_check, detail}` derived from the
+outcome of real requests rather than from a probe — `/health` is the container healthcheck and
+must not make network calls. `reachable: null` means "not used since the last restart", which is
+different from "down".
 
 ### `POST /integration/submit` — integration-ready intake (FR-130)
 **Auth:** API key, `ANALYST` scope. Demonstrates how an external system such as NCRP *could*
@@ -333,12 +372,15 @@ see [LIMITATIONS.md](LIMITATIONS.md).
 |---|---|---|---|---|
 | POST | `/auth/login` | Authenticate | — | NFR-08 |
 | POST | `/cases` | Create case | INV+ | FR-01 |
-| GET | `/cases` | List cases | INV+ | FR-03 |
+| GET | `/cases` | List cases | any role | FR-03 |
 | GET | `/cases/{id}` | Case detail | INV+ | FR-03 |
 | PATCH | `/cases/{id}` | Update case | INV+ | FR-04 |
 | POST | `/cases/{id}/notes` | Add note / pin finding | INV+ | FR-06 |
 | GET | `/cases/{id}/timeline` | Activity timeline | INV+ | FR-05 |
 | POST | `/cases/{id}/addresses` | Add suspect address | INV+ | FR-02, FR-07, FR-10 |
+| GET | `/cases/{id}/addresses` | List case addresses | any role | FR-02 |
+| DELETE | `/cases/{id}/addresses/{aid}` | Remove suspect address | INV+ | FR-02 |
+| DELETE | `/cases/{id}` | Delete a case | ADMIN | — |
 | POST | `/cases/{id}/analyses` | Start analysis | INV+ | FR-120 |
 | GET | `/analyses/{id}` | Status + progress | INV+ | FR-121 |
 | POST | `/analyses/{id}/cancel` | Cancel | INV+ | FR-123 |

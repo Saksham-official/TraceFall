@@ -15,11 +15,19 @@ Do not implement a resolution that has not been written down.
 ## Blocking Phase 3 — Ingestion
 
 ### OQ-01 · What are the actual free-tier rate limits, measured?
-**Partially answered 2026-09-05 by direct observation:** unauthenticated TronGrid enforces
-**3 rps** and suspends the caller for 5 seconds on breach — well below the figure NFR-01 was
-derived from. The default is now 3.0. A dedicated measurement of Etherscan and Blockscout, and
-the resulting trace-time projection, is in
+**Answered 2026-09-05 by measurement** —
 [research/OQ-01-provider-rate-limits.md](research/OQ-01-provider-rate-limits.md).
+
+**NFR-01 is not achievable as originally specified.** TronGrid without a key sustains
+**0.5 req/s per RPC method** with no burst tolerance; a 200-address cold trace takes ~400 s.
+120 s buys about 60 uncached addresses. Acted on: rates corrected, rate-limiting rebucketed
+per method, backoff given a throttle floor (TronGrid sends no `Retry-After`), trace depth
+5 to 3 and fan-out 20 to 8, a new `trace_address_budget` of 60, and cache TTL 1h to 24h —
+the highest-leverage change, since a closed block range never changes.
+
+**The remaining lever is unquantified:** TronGrid publishes no numbers for authenticated
+access. Getting a free API key and re-measuring is the one thing that could restore the
+original target.
 **Why it matters.** NFR-01 (under 120 s) is derived from *published* limits. Published limits
 and enforced limits differ, and the whole performance target rests on this arithmetic
 ([DATA_SOURCES.md §1](DATA_SOURCES.md)).
@@ -29,12 +37,34 @@ sustained rate, before building anything on top of it.
 default demo path.
 
 ### OQ-02 · Does Etherscan's free tier expose internal transactions adequately?
+**Answered 2026-09-05: the question turned out to be the wrong one.** Etherscan's free tier
+*documents* `txlistinternal` as available, but it now rejects keyless requests entirely, so it
+could not be measured. **Blockscout is primary instead** — no key, no throttling observed,
+identical coverage.
+
+The finding that matters is why internal transactions are non-negotiable: at the Ronin
+exploiter address, **173,600 ETH arrived in a single internal transaction** while `txlist`
+shows only 8,667.91 ETH inbound. The same hash appears in `txlist` with the direction reversed
+and `value: "0"`. Normal-transaction-only tracing misses **95.2% of inbound value and gets the
+largest edge backwards** — a confident, wrong answer.
+
+**Original framing:**
 **Why it matters.** Internal transactions are where contract-mediated value actually moves.
 Missing them produces a trace that looks complete and is not — the worst kind of wrong.
 **Resolve by:** testing against a known address with internal transfers.
 **Fallback:** Blockscout, which exposes them differently.
 
 ### OQ-03 · Fixture cache in git, or Git LFS?
+**Answered 2026-09-05: plain git, no LFS.** Measured 546 TRC-20 transfers = 194,614 B raw,
+51,270 B gzipped (3.8:1, ~356 B/record). Native transactions cost 1,614 B/record — 4.5x worse
+for the asset class that usually is not the fraud, so capture token transfers preferentially.
+Projected 10-50 MB raw for 3-5 demo cases.
+
+Fixtures stay **readable indented JSON** for now: they are evidence, and being able to diff them
+is worth more than the 66% gzip saving at today's 64 KB. Revisit in Phase 15 if the captured set
+lands above ~20 MB.
+
+**Original framing:**
 **Why it matters.** Real provider responses for 3–5 addresses across several hops could be tens
 of megabytes. Committing that directly bloats every clone; LFS adds a setup step that can fail
 on an unfamiliar machine — on demo day.

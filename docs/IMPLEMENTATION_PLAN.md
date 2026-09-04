@@ -25,7 +25,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 7 | VASP attribution | ☐ | 4 (5 for full value) |
 | 8 | Risk engine | ☐ | 6, 7 |
 | 9 | AI / ML | ☐ | 7 |
-| 10 | Frontend dashboard | ☐ | 2 (mocks), 6/7/8 (real data) |
+| 10 | Frontend dashboard | ◐ | 2 (mocks), 6/7/8 (real data) |
 | 11 | Investigation reports | ☐ | 8 |
 | 12 | Security hardening | ☐ | 2, 10 |
 | 13 | Testing & QA | ☐ | all |
@@ -421,7 +421,7 @@ absence.
 
 ---
 
-## Phase 10 — Frontend dashboard ☐
+## Phase 10 — Frontend dashboard ◐
 **Depends on:** 2 for contracts; 6/7/8 for real data · **Start early against mocks**
 
 **Goal.** The investigator interface.
@@ -450,6 +450,23 @@ truncation banners · keyboard navigation works throughout · axe-core reports n
 · usable at 1366×768 in both themes.
 **Tests.** [TESTING_STRATEGY.md §11](TESTING_STRATEGY.md).
 **DoD.** A complete investigation is workable end to end through the UI.
+
+**Partially delivered 2026-09-05.** Built against the endpoints that exist, deliberately, so
+nothing is mock-driven and gets reworked: design tokens with light/dark palettes; the integrity
+components (`TierBadge`, `AddressChip`, `RiskBadge`, `AttributionCard`, `AmountDisplay`); auth
+with tokens held in module memory and never in web storage; dashboard with filters and honest
+empty states; the two-step case and address intake with live validation and the cross-case
+banner; the analysis progress screen; and the case-detail shell whose later-phase tabs say so
+rather than showing fabricated data. 32 frontend tests; eslint, `tsc -b`, vitest and `vite build`
+all pass.
+
+**Still to build** (waiting on their APIs): the Cytoscape graph, timeline scrubber, transactions
+table, patterns, attribution tab contents, evidence tab, report page, Quick Trace, and global
+address search.
+
+**Blocked on a backend change:** the refresh token is returned in the response body, so holding
+it only in memory means a page reload signs the user out. Issuing it as an httpOnly cookie is a
+Phase 12 item that is worth pulling forward — the client already sends `credentials: 'include'`.
 
 ---
 

@@ -54,9 +54,22 @@ labels.
 **MVP suitability:** ✅ as failover. Strategically valuable as the escape hatch if Etherscan
 limits become binding.
 
-### Rate-limit reality check
+### Rate-limit reality check — measured, and the opposite of what we assumed
 
-The Ethereum free tier at ~5 req/s is the tighter constraint. A 5-hop trace touching 200 new
+The planning documents called Ethereum the tighter constraint. **It is not.** Measured
+2026-09-05:
+
+| Provider | Measured sustained rate | Notes |
+|---|---|---|
+| TronGrid (no key) | **0.5 req/s per RPC method** | Zero burst tolerance. 2.0s spacing = 100% success; 1.2s = 67%; 1.0s = 40%. Method buckets are independent, so three methods in parallel reach ~1.6 req/s aggregate. |
+| Blockscout (no key) | **no throttling observed** up to 11.8 req/s across 195 requests | Needs no key at all |
+| Etherscan (no key) | **unusable** — rejects every keyless request | HTTP 200 with `"Missing/Invalid API Key"` |
+
+**Our primary chain is the bottleneck, by roughly 20x.** TronGrid sends no `Retry-After`
+and no rate-limit headers; the ~5.5s suspension duration appears only in the prose body,
+which is why the backoff has a dedicated throttle floor.
+
+*Superseded assumption, kept for context:* the Ethereum free tier at ~5 req/s A 5-hop trace touching 200 new
 addresses needs ~400 requests (native + token per address) — roughly 80 seconds at the limit,
 before any retries. **This is the arithmetic behind NFR-01's 120-second target**, and behind
 the mitigations that matter: caching, request coalescing for hot addresses, and not expanding

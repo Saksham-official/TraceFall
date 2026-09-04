@@ -90,15 +90,22 @@ counterparty is not a wallet and must never be attributed as one.
 | Chain | Primary | Failover | Auth | Free-tier reality |
 |---|---|---|---|---|
 | TRON | TronGrid REST | **none yet** (see below) | Optional; works with no key | **Measured: 3 req/s unauthenticated**, then a 5-second suspension |
-| Ethereum | Etherscan API | Blockscout | API key (free) | ~5 req/s, 100k/day — the real constraint |
+| Ethereum | **Blockscout** | Etherscan (only with a key) | None needed | No throttling observed up to 11.8 req/s |
 
 **TRON has no failover today.** TronScan was the planned secondary, but its terms of service
 could not be retrieved (OQ-07), and building against unread terms is not acceptable for a
 Ministry of Home Affairs problem statement. A TRON provider outage currently degrades the
 analysis rather than failing over.
 
-**Ethereum failover is nearly free** because Blockscout implements the Etherscan API shape:
-one parser serves both hosts, and failover is a base-URL change.
+**Blockscout leads on Ethereum.** It implements the Etherscan API shape, so one parser serves
+both hosts, but it needs no API key and measured far faster. Etherscan now rejects keyless
+requests entirely, so it is only attempted when a key is configured.
+
+**Blockscout has its own trap:** while still indexing it returns HTTP 200, `status: "1"`, valid
+rows, **and** a message saying some internal transactions have not been processed. Reading only
+the rows would report a complete answer over incomplete data — the exact failure internal
+transactions exist to prevent, wearing the disguise of success. The adapter maps that message to
+`complete=false`.
 
 **One Etherscan quirk matters more than its rate limit:** it reports throttling as **HTTP 200**
 with `{"status": "0", "message": "NOTOK", "result": "Max rate limit reached"}`. Transport-level
