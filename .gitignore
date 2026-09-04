@@ -26,6 +26,9 @@ data/evidence/
 models/*.txt
 models/*.pkl
 
+# Agent worktrees
+.claude/worktrees/
+
 # Editors / OS
 .DS_Store
 .idea/
