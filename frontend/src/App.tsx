@@ -1,23 +1,45 @@
+import { Link, Route, Routes } from 'react-router-dom'
+
+import { RequireAuth } from './auth'
+import { AppShell } from './components/AppShell'
+import { EmptyState, Button } from './components/ui'
+import { AddressIntakePage } from './pages/AddressIntakePage'
+import { AnalysisProgressPage } from './pages/AnalysisProgressPage'
+import { CaseDetailPage } from './pages/CaseDetailPage'
+import { DashboardPage } from './pages/DashboardPage'
+import { LoginPage } from './pages/LoginPage'
+import { NewCasePage } from './pages/NewCasePage'
+
 export function App() {
   return (
-    <main
-      style={{
-        fontFamily: 'system-ui, sans-serif',
-        maxWidth: '40rem',
-        margin: '4rem auto',
-        padding: '0 1rem',
-      }}
-    >
-      <h1>TraceFall</h1>
-      <p>Automated blockchain analytics for cryptocurrency fraud investigation.</p>
-      <p>
-        Smart India Hackathon 2026 &middot; Problem Statement SIH26183 &middot; Ministry of Home
-        Affairs
-      </p>
-      <p>
-        <strong>Phase 1 &mdash; repository foundation.</strong> The investigator dashboard is
-        built in Phase 10.
-      </p>
-    </main>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        element={
+          <RequireAuth>
+            <AppShell />
+          </RequireAuth>
+        }
+      >
+        <Route index element={<DashboardPage />} />
+        <Route path="cases/new" element={<NewCasePage />} />
+        <Route path="cases/:caseId" element={<CaseDetailPage />} />
+        <Route path="cases/:caseId/address" element={<AddressIntakePage />} />
+        <Route path="analyses/:runId" element={<AnalysisProgressPage />} />
+        <Route
+          path="*"
+          element={
+            <EmptyState
+              title="Page not found"
+              action={
+                <Link to="/">
+                  <Button>Back to cases</Button>
+                </Link>
+              }
+            />
+          }
+        />
+      </Route>
+    </Routes>
   )
 }

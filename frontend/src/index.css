@@ -1,0 +1,154 @@
+@import 'tailwindcss';
+
+/* Design tokens — FRONTEND_SPEC §2.
+   Both themes are defined explicitly; neither inherits from the host. Colour is never
+   the only encoding: risk bands always carry their band text, attribution tiers always
+   carry a label, a border style, and an icon. */
+
+:root {
+  color-scheme: light;
+
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f1f5f9;
+  --border: #cbd5e1;
+  --border-strong: #94a3b8;
+  --text: #0f172a;
+  --muted: #475569;
+  --accent: #1d4ed8;
+  --accent-contrast: #ffffff;
+  --focus: #1d4ed8;
+  --danger: #b91c1c;
+
+  --risk-low-fg: #334155;
+  --risk-low-bg: #f1f5f9;
+  --risk-low-border: #94a3b8;
+  --risk-medium-fg: #92400e;
+  --risk-medium-bg: #fef3c7;
+  --risk-medium-border: #d97706;
+  --risk-high-fg: #9a3412;
+  --risk-high-bg: #ffedd5;
+  --risk-high-border: #ea580c;
+  --risk-critical-fg: #991b1b;
+  --risk-critical-bg: #fee2e2;
+  --risk-critical-border: #dc2626;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface-2: #334155;
+    --border: #475569;
+    --border-strong: #64748b;
+    --text: #f1f5f9;
+    --muted: #cbd5e1;
+    --accent: #93c5fd;
+    --accent-contrast: #0f172a;
+    --focus: #93c5fd;
+    --danger: #fca5a5;
+
+    --risk-low-fg: #e2e8f0;
+    --risk-low-bg: #334155;
+    --risk-low-border: #94a3b8;
+    --risk-medium-fg: #fcd34d;
+    --risk-medium-bg: #451a03;
+    --risk-medium-border: #d97706;
+    --risk-high-fg: #fdba74;
+    --risk-high-bg: #431407;
+    --risk-high-border: #ea580c;
+    --risk-critical-fg: #fca5a5;
+    --risk-critical-bg: #450a0a;
+    --risk-critical-border: #dc2626;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-2: #334155;
+  --border: #475569;
+  --border-strong: #64748b;
+  --text: #f1f5f9;
+  --muted: #cbd5e1;
+  --accent: #93c5fd;
+  --accent-contrast: #0f172a;
+  --focus: #93c5fd;
+  --danger: #fca5a5;
+
+  --risk-low-fg: #e2e8f0;
+  --risk-low-bg: #334155;
+  --risk-low-border: #94a3b8;
+  --risk-medium-fg: #fcd34d;
+  --risk-medium-bg: #451a03;
+  --risk-medium-border: #d97706;
+  --risk-high-fg: #fdba74;
+  --risk-high-bg: #431407;
+  --risk-high-border: #ea580c;
+  --risk-critical-fg: #fca5a5;
+  --risk-critical-bg: #450a0a;
+  --risk-critical-border: #dc2626;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border-base: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-danger: var(--danger);
+
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, monospace;
+}
+
+@layer base {
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+    /* Dense but calm: 14px base, an 8px spacing rhythm (FRONTEND_SPEC §2). */
+    font-size: 14px;
+    margin: 0;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  /* Nothing in this UI may rely on a mouse. */
+  [hidden] {
+    display: none !important;
+  }
+}
+
+@layer components {
+  .risk-LOW {
+    color: var(--risk-low-fg);
+    background-color: var(--risk-low-bg);
+    border-color: var(--risk-low-border);
+  }
+  .risk-MEDIUM {
+    color: var(--risk-medium-fg);
+    background-color: var(--risk-medium-bg);
+    border-color: var(--risk-medium-border);
+  }
+  .risk-HIGH {
+    color: var(--risk-high-fg);
+    background-color: var(--risk-high-bg);
+    border-color: var(--risk-high-border);
+  }
+  .risk-CRITICAL {
+    color: var(--risk-critical-fg);
+    background-color: var(--risk-critical-bg);
+    border-color: var(--risk-critical-border);
+  }
+}
