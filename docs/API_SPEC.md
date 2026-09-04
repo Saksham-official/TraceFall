@@ -75,12 +75,47 @@ No auth. → `200 { access_token, refresh_token, token_type, expires_in, user }`
 `401 UNAUTHENTICATED` on bad credentials — deliberately identical response for unknown user and
 wrong password.
 
+**Also sets the refresh cookie** (below). The refresh token is returned *both* in the body and
+as the cookie: the cookie is additive, so non-browser clients are unaffected.
+
 ### `POST /auth/refresh` → a full `TokenResponse`.
 **As built:** the refresh token is *rotated*, not just exchanged — the presented token is
 revoked and a new one issued, so replaying it fails. The response carries both tokens and the
-user, identical in shape to login.
-### `POST /auth/logout` → revokes the refresh token.
+user, identical in shape to login, and re-sets the refresh cookie with the rotated token.
+
+The token is read from the `tracefall_refresh` cookie when one is present, and from the request
+body (`{ "refresh_token": "…" }`) otherwise. Cookie-first means a browser converges on the newest
+token even if its in-memory copy has fallen behind; the body fallback keeps existing API clients
+working unchanged. With neither, `401 UNAUTHENTICATED`.
+
+**This is the session-recovery endpoint.** A browser holds tokens in memory only (SECURITY.md §9),
+so a page reload loses them — but not the httpOnly cookie. `POST /auth/refresh` **with an empty
+body** therefore restores a full session: a working access token, a rotated refresh token, and the
+user. No separate `GET /auth/session` exists; a bare refresh is that endpoint.
+
+### `POST /auth/logout` → revokes **every** refresh token for the user, and clears the refresh
+cookie (same name, path and flags, `Max-Age=0`). Server-side revocation is what ends the session;
+clearing the cookie stops the browser replaying a token it can no longer use.
+
 ### `GET /auth/me` → current user and role.
+
+### The refresh cookie
+
+| | |
+|---|---|
+| **Name** | `tracefall_refresh` |
+| **Value** | the current refresh token |
+| **`HttpOnly`** | always — script cannot read it, so an XSS cannot exfiltrate the session |
+| **`SameSite=Lax`** | a cross-site `POST` does not carry it, which is the CSRF defence for `/auth/refresh` and `/auth/logout` |
+| **`Path=/api/v1/auth`** | the only routes that need it; it never rides along on case or analysis requests |
+| **`Max-Age`** | `REFRESH_TOKEN_DAYS` (default 7 days), matching the token's own expiry |
+| **`Secure`** | **set when `ENVIRONMENT=production`, unset in development** |
+
+`Secure` is environment-driven rather than hardcoded because it cuts both ways: a `Secure` cookie
+is silently dropped by the browser over plain HTTP, which would break local development on
+`http://localhost`, while omitting it in production would let the token ride a downgraded request.
+It is read from settings, so a production deployment cannot accidentally ship the development
+behaviour.
 
 ---
 

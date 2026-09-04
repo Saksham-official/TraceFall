@@ -36,11 +36,20 @@ that provider we are interested in it.
   list. Never logged, never returned, never included in any error.
 - **Tokens:** short-lived JWT access tokens (15 min) plus rotating refresh tokens (7 days),
   stored server-side so they can be revoked. Access tokens carry `sub`, `role`, `exp`, `jti`.
+- **Refresh token delivery — as built.** Login and refresh set the refresh token in an
+  `httpOnly`, `SameSite=Lax`, `Path=/api/v1/auth` cookie named `tracefall_refresh`, and
+  `Secure` whenever `ENVIRONMENT=production` (off in development so local HTTP works). This is
+  what makes §9 achievable: the browser keeps tokens in memory only, and still survives a page
+  reload, because `POST /auth/refresh` with an empty body reads the cookie and returns a full
+  token pair. The token is *also* still returned in the response body, so non-browser clients
+  are unaffected — the cookie is additive. `SameSite=Lax` is the CSRF defence: a cross-site
+  `POST` does not carry the cookie. Flags and rationale: [API_SPEC.md §2](API_SPEC.md).
 - **Login responses are identical for unknown user and wrong password.** Distinguishing them
   enumerates accounts.
 - **Rate limiting:** 5 attempts per account per 15 minutes, plus a per-IP limit. Exponential
   lockout.
-- **Session termination:** logout revokes the refresh token; password change revokes all.
+- **Session termination:** logout revokes every refresh token for the user *and* clears the
+  cookie; password change revokes all.
 - **MFA:** TOTP, `SHOULD` priority — appropriate for a system holding investigation data, and
   built if Phase 12 allows.
 
