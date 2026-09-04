@@ -16,7 +16,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | Phase | Name | Status | Depends on |
 |---|---|---|---|
 | 0 | Planning & architecture | ☑ | — |
-| 1 | Repository foundation | ☐ | 0 |
+| 1 | Repository foundation | ◐ | 0 |
 | 2 | Backend foundation | ☐ | 1 |
 | 3 | Blockchain ingestion | ☐ | 2 |
 | 4 | Transaction normalization | ☐ | 3 |
@@ -67,7 +67,7 @@ Phase 15 is everyone.
 
 ---
 
-## Phase 1 — Repository foundation ☐
+## Phase 1 — Repository foundation ◐
 
 **Goal.** A repository skeleton that runs, lints, and tests — with no features.
 
@@ -90,6 +90,16 @@ CI is green.
 **Tests.** One health-endpoint test; one frontend smoke test.
 **DoD.** A fresh clone reaches a running stack in under five minutes following
 [DEPLOYMENT.md](DEPLOYMENT.md).
+
+**Verified 2026-09-05.** Backend: ruff, `ruff format --check`, mypy `strict`, and 7 pytest
+tests all pass; the API boots against a real `.env` and `GET /api/v1/health` returns 200 with
+`{status, version, live_mode, providers}`. Frontend: eslint, `tsc -b`, 2 vitest tests, and
+`vite build` all pass. Compose defines the five services with healthchecks; the worker
+heartbeat healthcheck was verified directly (exit 1 stale, exit 0 live).
+
+**Outstanding.** `docker compose up` has **not** been run — Docker is not installed on the
+development machine. Run it on a machine with Docker and confirm all five containers report
+healthy before marking this phase ☑. Everything else in the acceptance list passes.
 
 ---
 

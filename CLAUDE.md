@@ -6,14 +6,19 @@
 
 ## Current phase
 
-> ## PHASE 0 — PLANNING / ARCHITECTURE
-> **No implementation has started. The repository contains documentation only.**
+> ## PHASE 1 — REPOSITORY FOUNDATION (in progress)
+> Phase 0 (planning) is complete. The repository now holds a running skeleton: FastAPI with a
+> health endpoint, a worker placeholder, a React/TypeScript SPA placeholder, Docker Compose,
+> CI, and secret scanning. **No product features are implemented.**
 >
-> Before writing any application code, read
-> [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md) and
-> [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md). The next phase is **Phase 1 — Repository
-> foundation**. Update the phase table in `IMPLEMENTATION_PLAN.md` when a phase completes, and
-> update this banner when the phase changes.
+> One acceptance item is outstanding: `docker compose up` has not been run because Docker is
+> not installed on the development machine. See Phase 1 in
+> [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
+>
+> Next is **Phase 2 — Backend foundation** (auth, schema, case CRUD, job scaffold). Read
+> [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md) first. Update the phase table in
+> `IMPLEMENTATION_PLAN.md` when a phase completes, and update this banner when the phase
+> changes.
 
 ---
 
