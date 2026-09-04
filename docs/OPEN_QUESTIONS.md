@@ -1,0 +1,198 @@
+# Open Questions
+
+Decisions that must be made **before or during** the phase that depends on them, and that
+Phase 0 deliberately did not settle — because settling them requires information we do not have
+yet (a measurement, a licence check, a team-size answer), and locking them prematurely would be
+guessing dressed as planning.
+
+**Process:** resolve → record as an ADR in [DECISIONS.md](DECISIONS.md) → then implement.
+Do not implement a resolution that has not been written down.
+
+**Do not resolve these now.** They are listed here so nobody starts a phase unaware of them.
+
+---
+
+## Blocking Phase 3 — Ingestion
+
+### OQ-01 · What are the actual free-tier rate limits, measured?
+**Why it matters.** NFR-01 (under 120 s) is derived from *published* limits. Published limits
+and enforced limits differ, and the whole performance target rests on this arithmetic
+([DATA_SOURCES.md §1](DATA_SOURCES.md)).
+**Resolve by:** writing a throwaway script that hammers each provider and records the real
+sustained rate, before building anything on top of it.
+**If the answer is bad:** raise the cache TTL, lower the default depth, or make TRON-only the
+default demo path.
+
+### OQ-02 · Does Etherscan's free tier expose internal transactions adequately?
+**Why it matters.** Internal transactions are where contract-mediated value actually moves.
+Missing them produces a trace that looks complete and is not — the worst kind of wrong.
+**Resolve by:** testing against a known address with internal transfers.
+**Fallback:** Blockscout, which exposes them differently.
+
+### OQ-03 · Fixture cache in git, or Git LFS?
+**Why it matters.** Real provider responses for 3–5 addresses across several hops could be tens
+of megabytes. Committing that directly bloats every clone; LFS adds a setup step that can fail
+on an unfamiliar machine — on demo day.
+**Options.** Direct commit (simple, heavy) · Git LFS (clean, fragile) · commit compressed
+fixtures and decompress at startup (probably the right answer).
+**Resolve by:** capturing one address's fixtures and measuring.
+
+### OQ-04 · Evidence storage: filesystem or object storage, and what retention default?
+**Why it matters.** [DATA_ARCHITECTURE.md §2](DATA_ARCHITECTURE.md) specifies files on disk with
+metadata rows. Fine for a demo. The retention default in
+[PRIVACY_AND_COMPLIANCE.md §4](PRIVACY_AND_COMPLIANCE.md) (case + 3 years) is a **placeholder**,
+not a researched figure.
+**Resolve by:** filesystem for the MVP is almost certainly correct; the retention default needs
+someone to check what Indian investigation record-retention practice actually requires, and to
+say so rather than inventing a number.
+
+---
+
+## Blocking Phase 5 — Tracing
+
+### OQ-05 · Anchor-matching tolerances
+**Why it matters.** [WALLET_TRACING.md §2](WALLET_TRACING.md) proposes matching the victim's
+transaction within **±24 hours and ±2%**. Both numbers are reasoned guesses. Too tight and real
+victims' transactions are missed (they misremember times, and fees change amounts); too loose
+and we anchor to the wrong transaction, which silently corrupts the entire trace.
+**Resolve by:** testing against real fixture data with known victim transfers. Consider
+returning ranked candidates whenever more than one matches, rather than tuning toward a single
+answer.
+
+### OQ-06 · Are the default thresholds right for real Indian case sizes?
+Depth 5, taint threshold 1%, fan-out cap 20, 90-day window. Chosen for a sensible balance of
+completeness and runtime. **Unvalidated against real cases.**
+**Resolve by:** running traces on the demo addresses in Phase 15 and checking whether the
+defaults reach the exchange endpoints or stop short. Adjust once, with the reasoning recorded.
+
+---
+
+## Blocking Phase 7 — Attribution *(highest-risk cluster)*
+
+### OQ-07 · Which label datasets have licences that actually permit our use?
+**Why it matters.** [DATA_SOURCES.md §2](DATA_SOURCES.md) names candidate sources but explicitly
+does **not** confirm their licences. Several block explorers prohibit bulk use of their label
+data. Ingesting a dataset we are not permitted to use is both a legal problem and an
+embarrassment in a Ministry of Home Affairs problem statement.
+**Resolve by:** reading each dataset's licence individually and recording it in its
+`label_sources` row. **No dataset is ingested until its licence is confirmed and written down.**
+
+### OQ-08 · Is there adequate public label coverage for **TRON** exchange hot wallets?
+**The single biggest unknown in the project.** Public labelling for Ethereum is good. For TRON —
+our primary chain, chosen deliberately in ADR-001 — it is materially thinner, and attribution is
+the product.
+**Why it matters.** If TRON hot-wallet coverage is poor, `CONFIRMED` attribution mostly fails on
+the chain that matters most, and the deposit-address heuristic has nothing confirmed to sweep
+*to* — collapsing the chained inference in
+[VASP_IDENTIFICATION.md §4](VASP_IDENTIFICATION.md).
+**Resolve by:** doing the curation work **early in Phase 7, before building the engine around
+it**. Major exchange TRON hot wallets are identifiable by inspection — very high volume,
+consistent sweep patterns, publicly discussed. Fifty verified addresses would be sufficient.
+**If coverage genuinely cannot be assembled:** this is the one finding that would justify
+revisiting ADR-001 and leading the demo with Ethereum instead. Better to discover it in week one
+than in week four.
+
+### OQ-09 · Deposit-heuristic thresholds
+`sweep_consistency > 0.95`, `dwell < 1 h`, `balance_retention ≈ 0`, decision cut-offs at 0.7 and
+0.4. All reasoned, none calibrated.
+**Resolve by:** measuring against known deposit addresses and known look-alikes once the label
+set exists. **Prioritise precision over recall** — this is the number that decides whether a
+legal request goes to the right institution.
+
+---
+
+## Blocking Phase 9 — ML *(only if ML is built)*
+
+### OQ-10 · Where do hard negatives come from?
+**Why it matters.** Payment processors, OTC desks, and custodial services are the look-alikes
+that cost us precision, and they are scarce in any dataset we can assemble
+([LIMITATIONS.md §7](LIMITATIONS.md)). A classifier trained without them will be confidently
+wrong on exactly the cases that matter.
+**Resolve by:** manual identification of a modest set, or accept the limitation explicitly, cap
+the model's confidence, and say so.
+
+### OQ-11 · Is the classifier worth building at all?
+**Why it matters.** The deterministic heuristic already delivers the attribution. The classifier
+adds precision at the boundary — and the labels are bootstrapped from the heuristic itself, so
+the gain may be small.
+**Resolve by:** measuring the heuristic's precision at the end of Phase 7. **If it is already
+above 0.95, skip Phase 9** and spend the time on the frontend or the demo. That would be a
+better project, and a more interesting answer to give a judge who asks why there is no model.
+
+---
+
+## Blocking Phase 11 — Reports
+
+### OQ-12 · ReportLab or WeasyPrint?
+**Trade-off.** ReportLab gives precise programmatic layout and no system dependencies, but PDF
+layout in code is slow to write. WeasyPrint renders HTML/CSS — far faster to iterate, and the
+report template could share styling with the frontend — but adds native system dependencies to
+the Docker image.
+**Recommendation to validate:** WeasyPrint, for iteration speed, unless the container
+dependencies prove painful.
+
+### OQ-13 · Use an LLM for report narrative at all?
+**Why it matters.** [LIMITATIONS.md §8](LIMITATIONS.md) already recommends template mode for
+anything entering a case file. If the recommendation is always "use templates", the LLM path is
+a demo feature carrying real risk and real implementation cost (placeholder validation, regex
+rejection, tier-language checking, fallback — all of which must be tested).
+**Resolve by:** deciding whether the narrative quality justifies it. **A defensible answer is
+"no, and here is why"** — which is itself a strong position to present.
+
+---
+
+## Blocking Phase 2 — Backend / Phase 12 — Security
+
+### OQ-14 · Local accounts only, or is SSO expected?
+Current design assumes local accounts with Argon2 and JWT. A real police deployment would likely
+need integration with an existing directory.
+**Resolve by:** local accounts for the MVP is almost certainly right; confirm that no judge-
+facing claim implies otherwise, and note the integration path in
+[FUTURE_SCOPE.md](FUTURE_SCOPE.md).
+
+---
+
+## Blocking Phase 15 — Demo
+
+### OQ-15 · Which real addresses does the demo use?
+**Requirements.** Publicly documented as fraud-linked (OFAC designations, published incident
+reports, open research). Multi-hop fund flow. At least one terminating at an identifiable
+exchange. **At least one honestly unattributable** — the example that earns credibility. Ideally
+on TRON, with USDT.
+**Why it matters.** This choice determines how good the demo is more than any code written
+after Phase 10. Do not leave it to the last week.
+**Resolve by:** researching candidates during Phase 7, while curating labels — the two tasks
+share the same source material.
+
+---
+
+## Project-level
+
+### OQ-16 · Team size and available time
+Every estimate in [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) assumes four people working
+in parallel tracks. With fewer, the cut list in [MVP_SCOPE.md §6](MVP_SCOPE.md) applies in
+order, and **Ethereum support is the sixth thing to go** — TRON alone still answers PS26183.
+**Resolve by:** deciding now, honestly, and choosing the scope that fits rather than discovering
+it in week four.
+
+### OQ-17 · Should the MVP ship Ethereum at all?
+Reopened deliberately, because it is the largest optional scope in the project. Ethereum earns
+its place by proving the adapter abstraction and by having better label coverage; it costs a
+second provider integration, a second label curation effort, and the tighter of the two rate
+limits.
+**Resolve by:** a checkpoint at the end of Phase 3. If TRON alone is not fully working by then,
+drop Ethereum without hesitation. **A complete, honest, single-chain system demonstrates the
+problem statement better than two half-finished ones**, and the adapter interface means adding
+Ethereum later costs one file.
+
+---
+
+## Deliberately not open
+
+For the avoidance of doubt, these are **settled** and should not be reopened without a
+superseding ADR: the three-tier attribution model (ADR-005) · haircut taint (ADR-004) ·
+deterministic risk scoring (ADR-006) · service-boundary termination (ADR-010) · no victim PII
+(ADR-011) · PostgreSQL only (ADR-003) · fixture-first demo (ADR-009).
+
+These are the product's integrity guarantees. Everything above is a detail; these are the
+design.
