@@ -5,9 +5,19 @@ address, and a 4-byte double-SHA256 checksum.
 """
 
 import hashlib
+from typing import Any
 
-from app.chains.base import ChainAdapter, InvalidAddressError, ValidatedAddress
+from app.chains.base import (
+    ChainAdapter,
+    FetchResult,
+    InvalidAddressError,
+    TimeWindow,
+    TruncationReason,
+    ValidatedAddress,
+)
+from app.core.config import get_settings
 from app.db.models.enums import ChainCode
+from app.ingestion import gateway
 
 _ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 _INDEX = {c: i for i, c in enumerate(_ALPHABET)}
@@ -81,3 +91,64 @@ class TronAdapter:
 
 
 adapter: ChainAdapter = TronAdapter()
+
+
+# --- Retrieval -------------------------------------------------------------------
+
+PROVIDER = "trongrid"
+
+
+def _headers() -> dict[str, str]:
+    key = get_settings().trongrid_api_key
+    return {"TRON-PRO-API-KEY": key} if key else {}
+
+
+async def _paginate(path: str, address: str, window: TimeWindow | None) -> FetchResult:
+    """Walk TronGrid's fingerprint pagination until a cap or the end of the data."""
+    settings = get_settings()
+    url = f"{settings.trongrid_base_url}{path.format(address=address)}"
+    result = FetchResult(provider_used=PROVIDER)
+    params: dict[str, Any] = {"limit": settings.page_size, "order_by": "block_timestamp,desc"}
+    if window is not None:
+        params["min_timestamp"] = window.start_ms
+        params["max_timestamp"] = window.end_ms
+
+    for page in range(settings.max_pages_per_fetch):
+        response = await gateway.request(
+            PROVIDER, url, dict(params), settings.trongrid_rate_per_second, _headers()
+        )
+        result.responses.append(response)
+        payload = response.json()
+        rows = payload.get("data") or []
+        result.record_count += len(rows)
+
+        if result.record_count >= settings.max_transfers_per_address:
+            # Itself a finding: an address this active is almost certainly a service.
+            return result.truncate(TruncationReason.TRANSFER_LIMIT)
+
+        fingerprint = (payload.get("meta") or {}).get("fingerprint")
+        if not rows or not fingerprint:
+            return result
+        params["fingerprint"] = fingerprint
+        if page == settings.max_pages_per_fetch - 1:
+            return result.truncate(TruncationReason.PAGE_LIMIT)
+
+    return result
+
+
+async def fetch_native_transfers(address: str, window: TimeWindow | None = None) -> FetchResult:
+    return await _paginate("/v1/accounts/{address}/transactions", address, window)
+
+
+async def fetch_token_transfers(address: str, window: TimeWindow | None = None) -> FetchResult:
+    """TRC-20 first: a USDT fraud traced via TRX transfers starts with the noise."""
+    return await _paginate("/v1/accounts/{address}/transactions/trc20", address, window)
+
+
+async def fetch_account(address: str) -> FetchResult:
+    settings = get_settings()
+    url = f"{settings.trongrid_base_url}/v1/accounts/{address}"
+    response = await gateway.request(
+        PROVIDER, url, {}, settings.trongrid_rate_per_second, _headers()
+    )
+    return FetchResult(responses=[response], record_count=1, provider_used=PROVIDER)

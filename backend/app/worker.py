@@ -1,7 +1,9 @@
 """Analysis queue worker.
 
-Phase 2 runs a stub pipeline: it claims a queued run, marks it RUNNING, heartbeats, and
-completes it. Phase 3 onward replaces _run_pipeline with the real stages.
+Runs the analysis pipeline stage by stage. Phase 3 implements RETRIEVAL; the remaining
+stages land in later phases. Each stage declares whether it is required or degradable:
+a degradable stage that fails records why and lets the run continue as PARTIAL, because
+a partial answer with its limits stated is worth more than no answer.
 """
 
 import asyncio
@@ -14,11 +16,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.chains.base import TimeWindow
 from app.core.logging import configure_logging
 from app.db.models.analysis import AnalysisRun
+from app.db.models.blockchain import Address, Chain
 from app.db.models.enums import AnalysisStage, AnalysisStatus
 from app.db.session import SessionFactory
+from app.ingestion import service
+from app.ingestion.fixtures import FixtureMissing
 from app.orchestrator import queue
 
 log = logging.getLogger("worker")
@@ -39,6 +46,33 @@ def is_alive() -> bool:
         return False
 
 
+async def _retrieve(run: AnalysisRun, session: AsyncSession) -> dict[str, object]:
+    """RETRIEVAL stage — required. Without data there is nothing to analyse."""
+    address = await session.get(Address, run.root_address_id)
+    if address is None:
+        raise RuntimeError(f"analysis run {run.id} references a missing address")
+    chain = await session.get(Chain, address.chain_id)
+    if chain is None:
+        raise RuntimeError(f"address {address.id} references a missing chain")
+    window_days = int(run.params.get("time_window_days", 90))
+
+    data = await service.retrieve_address(
+        chain.code,
+        address.address,
+        TimeWindow.last_days(window_days),
+        session=session,
+        case_id=run.case_id,
+        analysis_run_id=run.id,
+    )
+    return {
+        "records": data.record_count,
+        "complete": data.complete,
+        "truncation": data.truncation_reasons,
+        "is_fixture": data.is_fixture,
+        "degradations": data.degradations,
+    }
+
+
 async def _run_pipeline(run_id: uuid.UUID) -> None:
     async with SessionFactory() as session:
         run = await session.get(AnalysisRun, run_id)
@@ -57,14 +91,31 @@ async def _run_pipeline(run_id: uuid.UUID) -> None:
         run = await session.get(AnalysisRun, run_id)
         if run is None:
             return
-        # Phase 3 onward replaces this with the real stage sequence.
-        run.status = AnalysisStatus.COMPLETED
-        run.stage = None
+        degradations: list[dict[str, object]] = []
+        try:
+            summary = await _retrieve(run, session)
+        except FixtureMissing as exc:
+            # An operator error, not a provider failure: fail loudly rather than
+            # reporting an address with no activity.
+            run.status = AnalysisStatus.FAILED
+            run.error = str(exc)
+            run.completed_at = datetime.now(UTC)
+            await session.commit()
+            log.error("analysis run %s has no fixture: %s", run_id, exc)
+            return
+
         run.progress_pct = 100
+        run.stage = None
         run.completed_at = datetime.now(UTC)
-        run.engine_versions = {"pipeline": "stub-phase2"}
+        run.engine_versions = {"ingestion": "1.0.0", "retrieval_summary": summary}
+        if summary["degradations"] or not summary["complete"]:
+            degradations.append({"stage": AnalysisStage.RETRIEVAL, "detail": summary})
+            run.status = AnalysisStatus.PARTIAL
+        else:
+            run.status = AnalysisStatus.COMPLETED
+        run.degradations = degradations
         await session.commit()
-    log.info("completed analysis run %s (stub pipeline)", run_id)
+    log.info("analysis run %s finished: %s", run_id, summary)
 
 
 async def _reclaim_stale_runs() -> None:

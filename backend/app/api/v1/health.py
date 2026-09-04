@@ -3,14 +3,20 @@ from pydantic import BaseModel
 
 from app import __version__
 from app.core.config import get_settings
+from app.ingestion import status
 from app.orchestrator import queue
+
+PROVIDERS = ("trongrid", "etherscan", "blockscout")
 
 router = APIRouter(tags=["health"])
 
 
 class ProviderStatus(BaseModel):
     name: str
-    reachable: bool
+    # None means "not used since the last restart", which is different from "down".
+    reachable: bool | None = None
+    last_check: str | None = None
+    detail: str | None = None
 
 
 class Health(BaseModel):
@@ -23,11 +29,24 @@ class Health(BaseModel):
 
 @router.get("/health", response_model=Health)
 async def health() -> Health:
-    # providers stays empty until Phase 3 wires the chain adapters.
+    settings = get_settings()
+    providers: list[ProviderStatus] = []
+    if settings.live_mode:
+        for name in PROVIDERS:
+            observed = await status.read(name)
+            providers.append(
+                ProviderStatus(
+                    name=name,
+                    reachable=bool(observed["reachable"]) if observed else None,
+                    last_check=str(observed["at"]) if observed else None,
+                    detail=str(observed["detail"]) if observed and observed.get("detail") else None,
+                )
+            )
+    # In fixture mode no provider is contacted, so an empty list is the honest answer.
     return Health(
         status="ok",
         version=__version__,
-        live_mode=get_settings().live_mode,
+        live_mode=settings.live_mode,
         queue_reachable=await queue.ping(),
-        providers=[],
+        providers=providers,
     )

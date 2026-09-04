@@ -12,7 +12,9 @@ from app.db.models.enums import AnalysisStatus
 from app.orchestrator import queue
 from tests.conftest import auth, login, make_user
 
-USDT_TRC20 = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+# The address the committed fixtures were captured for, so the pipeline has real data.
+FIXTURED_ADDRESS = "TMuA6YqfCeX8EhbfYEg5y7S4DqzSJireY9"
+UNFIXTURED_ADDRESS = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
 
 
 async def _case_with_address(client: AsyncClient, session: AsyncSession, email: str) -> tuple:
@@ -24,7 +26,7 @@ async def _case_with_address(client: AsyncClient, session: AsyncSession, email: 
     address = (
         await client.post(
             f"/api/v1/cases/{case_id}/addresses",
-            json={"address": USDT_TRC20},
+            json={"address": FIXTURED_ADDRESS},
             headers=auth(token),
         )
     ).json()
@@ -82,6 +84,62 @@ async def test_worker_claims_the_job_and_completes_it(
     assert status["status"] == "COMPLETED"
     assert status["progress_pct"] == 100
     assert status["completed_at"] is not None
+
+
+async def test_missing_fixture_fails_the_run_loudly(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    """Reporting "no activity" for an address we simply never captured would be a lie."""
+    await make_user(session, "nofixture@example.gov")
+    token = await login(client, "nofixture@example.gov")
+    case_id = (
+        await client.post("/api/v1/cases", json={"title": "No fixture"}, headers=auth(token))
+    ).json()["id"]
+    address_id = (
+        await client.post(
+            f"/api/v1/cases/{case_id}/addresses",
+            json={"address": UNFIXTURED_ADDRESS},
+            headers=auth(token),
+        )
+    ).json()["id"]
+    run_id = (
+        await client.post(
+            f"/api/v1/cases/{case_id}/analyses",
+            json={"address_id": address_id},
+            headers=auth(token),
+        )
+    ).json()["analysis_run_id"]
+
+    await queue.dequeue(timeout=2)
+    await worker._run_pipeline(uuid.UUID(run_id))
+
+    status = (await client.get(f"/api/v1/analyses/{run_id}", headers=auth(token))).json()
+    assert status["status"] == "FAILED"
+    assert "capture_fixtures" in (status["error"] or "")
+
+
+async def test_completed_run_records_what_was_retrieved(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    from app.db.models.analysis import AnalysisRun
+
+    token, case_id, address_id = await _case_with_address(client, session, "summary@example.gov")
+    run_id = (
+        await client.post(
+            f"/api/v1/cases/{case_id}/analyses",
+            json={"address_id": address_id},
+            headers=auth(token),
+        )
+    ).json()["analysis_run_id"]
+    await queue.dequeue(timeout=2)
+    await worker._run_pipeline(uuid.UUID(run_id))
+
+    run = await session.get(AnalysisRun, uuid.UUID(run_id))
+    assert run is not None
+    await session.refresh(run)
+    summary = run.engine_versions["retrieval_summary"]
+    assert summary["records"] > 0
+    assert summary["is_fixture"] is True
 
 
 async def test_duplicate_analysis_for_the_same_address_conflicts(
