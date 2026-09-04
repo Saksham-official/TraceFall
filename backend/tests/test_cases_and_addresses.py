@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -186,3 +188,83 @@ async def test_address_is_stored_once_and_shared_across_cases(
         select(func.count()).select_from(Address).where(Address.address == USDT_TRC20)
     )
     assert count == 1
+
+
+async def test_reported_amount_is_persisted_and_returned(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    """FR-41: the victim's amount anchors the trace. Accepting it and dropping it is
+    worse than not asking for it."""
+    token = await _token(client, session, "amount@example.gov")
+    case_id = (
+        await client.post("/api/v1/cases", json={"title": "Anchored"}, headers=auth(token))
+    ).json()["id"]
+
+    body = (
+        await client.post(
+            f"/api/v1/cases/{case_id}/addresses",
+            json={
+                "address": USDT_TRC20,
+                "reported_amount": {"value": "40000", "asset_symbol": "USDT"},
+                "reported_at": "2026-08-14T09:32:00Z",
+            },
+            headers=auth(token),
+        )
+    ).json()
+
+    assert body["reported_amount"] is not None
+    assert Decimal(body["reported_amount"]) == Decimal("40000")
+    assert body["reported_asset_symbol"] == "USDT"
+    assert body["reported_at"].startswith("2026-08-14T09:32")
+
+    listed = (await client.get(f"/api/v1/cases/{case_id}/addresses", headers=auth(token))).json()
+    assert Decimal(listed[0]["reported_amount"]) == Decimal("40000")
+
+
+async def test_reported_amount_in_a_known_asset_resolves_to_raw_units(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    """TRX is seeded with 6 decimals, so the conversion is exact and safe to make."""
+    from sqlalchemy import select
+
+    from app.db.models.case import CaseAddress
+
+    token = await _token(client, session, "trx@example.gov")
+    case_id = (
+        await client.post("/api/v1/cases", json={"title": "Native"}, headers=auth(token))
+    ).json()["id"]
+    await client.post(
+        f"/api/v1/cases/{case_id}/addresses",
+        json={"address": USDT_TRC20, "reported_amount": {"value": "12.5", "asset_symbol": "TRX"}},
+        headers=auth(token),
+    )
+    row = await session.scalar(select(CaseAddress))
+    assert row is not None
+    assert row.reported_amount_raw == Decimal("12500000")  # 12.5 * 10^6
+    assert row.reported_asset_id is not None
+
+
+async def test_unknown_token_keeps_the_amount_without_guessing_decimals(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    """USDT has no asset row until normalization discovers it. Guessing 18 decimals for a
+    6-decimal token would misstate the amount by a factor of a trillion."""
+    from sqlalchemy import select
+
+    from app.db.models.case import CaseAddress
+
+    token = await _token(client, session, "unknowntoken@example.gov")
+    case_id = (
+        await client.post("/api/v1/cases", json={"title": "Unknown"}, headers=auth(token))
+    ).json()["id"]
+    await client.post(
+        f"/api/v1/cases/{case_id}/addresses",
+        json={"address": USDT_TRC20, "reported_amount": {"value": "40000", "asset_symbol": "USDT"}},
+        headers=auth(token),
+    )
+    row = await session.scalar(select(CaseAddress))
+    assert row is not None
+    assert row.reported_amount == Decimal("40000")
+    assert row.reported_asset_symbol == "USDT"
+    assert row.reported_amount_raw is None
+    assert row.reported_asset_id is None

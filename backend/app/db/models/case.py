@@ -78,6 +78,12 @@ class CaseAddress(Base):
     )
     address_id: Mapped[int] = mapped_column(ForeignKey("addresses.id"), nullable=False)
     role: Mapped[AddressRole] = mapped_column(pg_enum(AddressRole, "address_role"), nullable=False)
+    # What the victim reported, stored as given. The asset is often unknown at intake
+    # (a token contract is only discovered during normalization) and its decimals must
+    # never be guessed, so the decimal value and the symbol are kept verbatim.
+    reported_amount: Mapped[Decimal | None] = mapped_column(Numeric(38, 18))
+    reported_asset_symbol: Mapped[str | None] = mapped_column(String(32))
+    # Populated once the asset is resolved and the conversion is exact.
     reported_amount_raw: Mapped[Decimal | None] = mapped_column(RawAmount)
     reported_asset_id: Mapped[int | None] = mapped_column(ForeignKey("assets.id"))
     reported_at: Mapped[datetime | None] = mapped_column()

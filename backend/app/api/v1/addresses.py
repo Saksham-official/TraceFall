@@ -8,13 +8,22 @@ from app.chains.base import InvalidAddressError
 from app.chains.registry import get_adapter, validate
 from app.core.deps import CurrentUser, SessionDep, get_accessible_case, require_role
 from app.core.exceptions import InvalidAddress, NotFound
-from app.db.models.blockchain import Address, Chain
+from app.db.models.blockchain import Address, Asset, Chain
 from app.db.models.case import Case, CaseAddress, CaseTimelineEvent
 from app.db.models.enums import UserRole
 from app.db.models.user import User
 from app.schemas.address import CaseAddressCreate, CaseAddressOut, CrossCaseMatch
 
 router = APIRouter(prefix="/cases/{case_id}/addresses", tags=["addresses"])
+
+
+async def _resolve_asset(session: SessionDep, chain_id: int, symbol: str) -> Asset | None:
+    """A token the system has not seen yet simply has no asset row; that is not an error."""
+    asset: Asset | None = await session.scalar(
+        select(Asset).where(Asset.chain_id == chain_id, Asset.symbol == symbol.upper())
+    )
+    return asset
+
 
 Investigator = Annotated[
     User, Depends(require_role(UserRole.ADMIN, UserRole.INVESTIGATOR, UserRole.ANALYST))
@@ -53,11 +62,24 @@ async def add_address(
         .distinct()
     )
 
+    # The victim's amount and time anchor the trace to their actual transaction, which
+    # substantially improves the result (FR-41). Resolve to raw units only when the asset
+    # is already known; decimals are never guessed.
+    reported = payload.reported_amount
+    asset = await _resolve_asset(session, chain.id, reported.asset_symbol) if reported else None
+
     case_address = CaseAddress(
         case_id=case_id,
         address_id=address.id,
         role=payload.role,
-        reported_amount_raw=None,
+        reported_amount=reported.value if reported else None,
+        reported_asset_symbol=reported.asset_symbol.upper() if reported else None,
+        reported_asset_id=asset.id if asset else None,
+        reported_amount_raw=(
+            int(reported.value * (10**asset.decimals))
+            if reported and asset and asset.decimals is not None
+            else None
+        ),
         reported_at=payload.reported_at,
         notes=payload.notes,
         added_by=user.id,
@@ -81,6 +103,8 @@ async def add_address(
         chain=validated.chain,
         is_contract=address.is_contract,
         role=case_address.role,
+        reported_amount=case_address.reported_amount,
+        reported_asset_symbol=case_address.reported_asset_symbol,
         reported_at=case_address.reported_at,
         added_at=case_address.added_at,
         cross_case_matches=[
@@ -113,6 +137,8 @@ async def list_addresses(
                 chain=chain.code,
                 is_contract=address.is_contract,
                 role=case_address.role,
+                reported_amount=case_address.reported_amount,
+                reported_asset_symbol=case_address.reported_asset_symbol,
                 reported_at=case_address.reported_at,
                 added_at=case_address.added_at,
             )

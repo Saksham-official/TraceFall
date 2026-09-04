@@ -36,6 +36,8 @@ class CaseAddressOut(BaseModel):
     chain: ChainCode
     is_contract: bool | None
     role: AddressRole
+    reported_amount: Decimal | None = None
+    reported_asset_symbol: str | None = None
     reported_at: datetime | None
     added_at: datetime
     # Surfaced at intake, not later: another officer may already be working this address.

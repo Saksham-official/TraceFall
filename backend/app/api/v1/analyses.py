@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.core.deps import CurrentUser, SessionDep, get_accessible_case, require_role
 from app.core.exceptions import Conflict, NotFound
 from app.db.models.analysis import AnalysisRun
+from app.db.models.blockchain import Address
 from app.db.models.case import CaseAddress, CaseTimelineEvent
 from app.db.models.enums import AnalysisStatus, UserRole
 from app.db.models.user import User
@@ -82,14 +83,31 @@ async def _accessible_run(run_id: uuid.UUID, user: User, session: SessionDep) ->
     return run
 
 
+# Results exist once a stage has persisted something; RUNNING qualifies, QUEUED does not.
+_HAS_RESULTS = (AnalysisStatus.RUNNING, AnalysisStatus.PARTIAL, AnalysisStatus.COMPLETED)
+
+
+_DERIVED_FIELDS = {"root_address", "partial_results_available"}
+
+
+async def _to_out(run: AnalysisRun, session: SessionDep) -> AnalysisOut:
+    """One conversion, so status semantics cannot drift between endpoints."""
+    address = await session.get(Address, run.root_address_id)
+    return AnalysisOut(
+        **{
+            field: getattr(run, field)
+            for field in AnalysisOut.model_fields
+            if field not in _DERIVED_FIELDS and hasattr(run, field)
+        },
+        root_address=address.address if address else None,
+        partial_results_available=run.status in _HAS_RESULTS,
+    )
+
+
 @router.get("/analyses/{run_id}", response_model=AnalysisOut)
 async def get_analysis(run_id: uuid.UUID, user: CurrentUser, session: SessionDep) -> AnalysisOut:
     run = await _accessible_run(run_id, user, session)
-    return AnalysisOut(
-        **{k: getattr(run, k) for k in AnalysisOut.model_fields if hasattr(run, k)},
-        partial_results_available=run.status
-        in (AnalysisStatus.RUNNING, AnalysisStatus.PARTIAL, AnalysisStatus.COMPLETED),
-    )
+    return await _to_out(run, session)
 
 
 @router.post("/analyses/{run_id}/cancel", response_model=AnalysisOut, status_code=202)
@@ -103,10 +121,7 @@ async def cancel_analysis(
         run.completed_at = datetime.now(UTC)
         await session.commit()
         await session.refresh(run)
-    return AnalysisOut(
-        **{k: getattr(run, k) for k in AnalysisOut.model_fields if hasattr(run, k)},
-        partial_results_available=False,
-    )
+    return await _to_out(run, session)
 
 
 @router.get("/cases/{case_id}/analyses", response_model=list[AnalysisOut])
@@ -119,10 +134,4 @@ async def list_analyses(
         .where(AnalysisRun.case_id == case_id)
         .order_by(AnalysisRun.created_at.desc())
     )
-    return [
-        AnalysisOut(
-            **{k: getattr(r, k) for k in AnalysisOut.model_fields if hasattr(r, k)},
-            partial_results_available=r.status == AnalysisStatus.COMPLETED,
-        )
-        for r in rows.all()
-    ]
+    return [await _to_out(r, session) for r in rows.all()]

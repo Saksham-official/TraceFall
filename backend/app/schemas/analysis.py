@@ -28,6 +28,9 @@ class StageOut(BaseModel):
 class AnalysisOut(BaseModel):
     id: uuid.UUID
     case_id: uuid.UUID
+    root_address_id: int
+    # So the progress screen can name the address being analysed.
+    root_address: str | None = None
     status: AnalysisStatus
     stage: AnalysisStage | None
     progress_pct: int
