@@ -358,3 +358,33 @@ re-granted — but a superuser can do both, so the difference is small. Triggers
 per-row cost on tables that are insert-only anyway. Production should still run the
 application under a restricted role; that is defence in depth on top of this, not instead
 of it.
+
+---
+
+## ADR-016 — Fixture keys exclude time-derived and credential parameters
+
+**Status:** Accepted · **Date:** 2026-09-05
+
+**Context.** Fixture mode replays committed provider responses (ADR-009). The first
+implementation keyed fixtures the same way as the live cache — on the full parameter set.
+That can never match on replay: a window computed as "the last 90 days" produces different
+`min_timestamp` values every run, so every lookup missed.
+
+**Options.** Round window values to a coarse granularity (still breaks at the boundary) ·
+pin a capture-time window into the fixture and require callers to request exactly it ·
+**key fixtures on stable parameters only** · store a manifest mapping requests to fixtures.
+
+**Chosen:** the fixture key excludes `min_timestamp`, `max_timestamp`, `startblock`,
+`endblock`, `apikey`, and `timestamp`. The live cache key still uses the full set, so live
+caching stays correct.
+
+**Why.** A fixture is a snapshot of an address, not of a query. Keying it on wall-clock-derived
+values makes it unreplayable by construction, and any rounding scheme merely moves the failure
+to a boundary. Excluding credentials additionally keeps API keys out of file names.
+
+**Trade-offs, stated because this one is visible to users.** Fixture mode serves **one snapshot
+per address regardless of the requested window** — a 7-day request and a 365-day request return
+the same records. Window filtering therefore has to happen during normalization, which is where
+it belongs anyway. This is acceptable because fixture mode exists for demos and tests, both of
+which want determinism over query fidelity; live mode is unaffected. A test asserts the two
+windows return identical data, so the behaviour is pinned rather than accidental.

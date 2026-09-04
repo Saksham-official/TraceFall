@@ -89,8 +89,21 @@ counterparty is not a wallet and must never be attributed as one.
 
 | Chain | Primary | Failover | Auth | Free-tier reality |
 |---|---|---|---|---|
-| TRON | TronGrid REST | TronScan API | API key (free) | Generous; adequate for the MVP |
+| TRON | TronGrid REST | **none yet** (see below) | Optional; works with no key | **Measured: 3 req/s unauthenticated**, then a 5-second suspension |
 | Ethereum | Etherscan API | Blockscout | API key (free) | ~5 req/s, 100k/day — the real constraint |
+
+**TRON has no failover today.** TronScan was the planned secondary, but its terms of service
+could not be retrieved (OQ-07), and building against unread terms is not acceptable for a
+Ministry of Home Affairs problem statement. A TRON provider outage currently degrades the
+analysis rather than failing over.
+
+**Ethereum failover is nearly free** because Blockscout implements the Etherscan API shape:
+one parser serves both hosts, and failover is a base-URL change.
+
+**One Etherscan quirk matters more than its rate limit:** it reports throttling as **HTTP 200**
+with `{"status": "0", "message": "NOTOK", "result": "Max rate limit reached"}`. Transport-level
+retry never sees it, so the adapter inspects the payload and raises a rate-limit error itself.
+Missing this would silently truncate a trace.
 
 Details, licensing, and bottleneck analysis: [DATA_SOURCES.md](DATA_SOURCES.md).
 

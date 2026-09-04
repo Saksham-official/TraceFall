@@ -6,21 +6,23 @@
 
 ## Current phase
 
-> ## PHASE 3 — BLOCKCHAIN INGESTION (next)
-> Phases 0–2 are complete. The repository holds a running backend: authentication with
-> RBAC, the full 28-table schema with its integrity constraints, case and suspect-address
-> management, address validation for TRON and Ethereum, audit logging, and the Redis job
-> queue with a worker running a stub pipeline. **No blockchain data is retrieved yet.**
+> ## PHASE 4 — TRANSACTION NORMALIZATION (next)
+> Phases 0–3 are complete. The backend authenticates, stores cases and suspect addresses,
+> validates TRON and Ethereum addresses, and **retrieves real blockchain data** with
+> caching, rate limiting, retry, failover, evidence capture, and a committed fixture cache
+> that replays offline. **Nothing is normalized, traced, attributed or scored yet.**
 >
-> 100 backend tests pass against a real PostgreSQL and Redis. One item is outstanding from
-> Phase 1: `docker compose up` has not been run because Docker is not installed on the
-> development machine.
+> 136 backend tests pass against a real PostgreSQL and Redis, with no network access.
 >
-> Next is **Phase 3 — Blockchain ingestion** (chain adapters, retrieval, caching, evidence
-> capture, the fixture cache). Read [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md) first —
-> OQ-01 and OQ-02 gate that phase. Update the phase table in
-> `IMPLEMENTATION_PLAN.md` when a phase completes, and update this banner when the phase
-> changes.
+> Next is **Phase 4 — Transaction normalization**: raw provider payloads become the
+> canonical `Transfer` model. The rules that matter are in
+> [docs/BLOCKCHAIN_ANALYTICS.md](docs/BLOCKCHAIN_ANALYTICS.md) section 5 — integer-exact
+> amounts, never guess a token's decimals, retain failed transfers, idempotent re-ingestion.
+> Update the phase table in `IMPLEMENTATION_PLAN.md` when a phase completes, and update this
+> banner when the phase changes.
+>
+> Outstanding from Phase 1: `docker compose up` has not been run (Docker is not installed on
+> the development machine).
 
 ---
 

@@ -5,10 +5,12 @@
 Smart India Hackathon 2026 · Problem Statement **SIH26183** · Ministry of Home Affairs ·
 Blockchain & Cybersecurity
 
-> ### Status: Phase 2 complete — backend foundation
-> Authentication, the full database schema, case management, address validation, audit
-> logging, and the job queue are implemented and tested. **No blockchain data is retrieved
-> yet** — that is Phase 3. See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
+> ### Status: Phase 3 complete — blockchain ingestion
+> The backend authenticates, manages cases and suspect addresses, and **retrieves real
+> blockchain data** from TRON and Ethereum with caching, rate limiting, retry, failover and
+> hashed evidence capture. A committed fixture cache replays it all offline.
+> **Nothing is traced, attributed or scored yet.** See
+> [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 
 ---
 
@@ -135,13 +137,13 @@ Frontend checks: `cd frontend && npm ci && npm run lint && npm run typecheck && 
 
 ## Current phase
 
-**Phase 2 — Backend foundation. Complete.** JWT authentication with role-based access and
-case isolation, the 28-table schema with its integrity constraints enforced in the database,
-case and suspect-address management, TRON and Ethereum address validation, append-only audit
-logging, and the Redis job queue. 100 tests pass.
+**Phase 3 — Blockchain ingestion. Complete.** On top of the Phase 2 foundation: TRON and
+Ethereum adapters, pagination, a Redis-backed rate limiter, jittered retry, Etherscan →
+Blockscout failover, request coalescing, hashed evidence capture, and a committed fixture
+cache that runs the whole path with no network. 136 tests pass.
 
-Next: Phase 3 (blockchain ingestion), after resolving OQ-01 and OQ-02 in
-[docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md).
+Next: Phase 4 (transaction normalization — raw payloads become the canonical `Transfer`
+model).
 
 ## A note on honesty
 

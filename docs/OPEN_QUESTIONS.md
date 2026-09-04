@@ -15,6 +15,11 @@ Do not implement a resolution that has not been written down.
 ## Blocking Phase 3 — Ingestion
 
 ### OQ-01 · What are the actual free-tier rate limits, measured?
+**Partially answered 2026-09-05 by direct observation:** unauthenticated TronGrid enforces
+**3 rps** and suspends the caller for 5 seconds on breach — well below the figure NFR-01 was
+derived from. The default is now 3.0. A dedicated measurement of Etherscan and Blockscout, and
+the resulting trace-time projection, is in
+[research/OQ-01-provider-rate-limits.md](research/OQ-01-provider-rate-limits.md).
 **Why it matters.** NFR-01 (under 120 s) is derived from *published* limits. Published limits
 and enforced limits differ, and the whole performance target rests on this arithmetic
 ([DATA_SOURCES.md §1](DATA_SOURCES.md)).

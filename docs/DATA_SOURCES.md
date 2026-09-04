@@ -9,7 +9,12 @@ Every external dependency, what it gives us, what it costs, and where it can bre
 ### TronGrid (TRON) — primary
 
 **Provides:** account info, TRX transfers, TRC-20 transfers, transaction detail, block data.
-**Access:** REST, free API key. **Rate limit:** generous free tier; adequate for the MVP.
+**Access:** REST. **Works with no API key at all** (measured 2026-09-05), which is why a fresh
+clone can capture fixtures without credentials.
+**Rate limit — measured, not published:** unauthenticated access enforces **3 requests/second**.
+Exceeding it returns HTTP 429 with a body naming `allowed_rps(3)` and **suspends the caller for
+5 seconds**. Our default is set to 3.0 accordingly. An API key raises this; see
+[research/OQ-01-provider-rate-limits.md](research/OQ-01-provider-rate-limits.md).
 **Reliability:** high — operated by the TRON Foundation.
 **Terms:** standard API terms; transaction data use is permitted.
 **MVP suitability:** ✅ **Primary source for the MVP's primary chain.**
@@ -24,7 +29,11 @@ one of the load-bearing assumptions of this project.
 **Access:** REST, free tier. **Reliability:** high, but documentation is thinner.
 **Caution:** label data may carry usage restrictions — **verify before ingesting labels**
 (open question OQ-07). Transaction data via the documented API is fine.
-**MVP suitability:** ✅ as transaction failover; ⚠️ labels pending licence confirmation.
+**MVP suitability:** ⏸ **Not integrated.** TronScan's terms of service could not be retrieved
+(the page is a client-side route and the host returns 403 to automated fetches), so building
+against it would mean depending on terms we have not read. TRON therefore has **no failover
+today** — a deliberate, documented gap rather than an oversight. Ten minutes with a browser
+unblocks it.
 
 ### Etherscan API (Ethereum) — primary
 

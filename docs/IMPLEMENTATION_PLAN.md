@@ -18,7 +18,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 0 | Planning & architecture | ☑ | — |
 | 1 | Repository foundation | ☑ | 0 |
 | 2 | Backend foundation | ☑ | 1 |
-| 3 | Blockchain ingestion | ☐ | 2 |
+| 3 | Blockchain ingestion | ☑ | 2 |
 | 4 | Transaction normalization | ☐ | 3 |
 | 5 | Wallet tracing | ☐ | 4 |
 | 6 | Graph analytics & pattern detection | ☐ | 5 |
@@ -163,7 +163,7 @@ front-loaded here, so no later phase generates one concurrently and forks the ch
 
 ---
 
-## Phase 3 — Blockchain ingestion ☐
+## Phase 3 — Blockchain ingestion ☑
 **Depends on:** 2 · **Enables:** 4
 
 **Goal.** Retrieve real chain data reliably, and capture evidence.
@@ -198,6 +198,29 @@ partial-result path · evidence hash correctness · fixture mode offline · the 
 [TESTING_STRATEGY.md §2](TESTING_STRATEGY.md).
 **DoD.** Real data retrievable for both chains; fixtures captured for the demo addresses; the
 suite passes with no network.
+
+**Verified 2026-09-05.** 136 tests pass; ruff, `ruff format --check` and mypy `strict` clean
+across 52 source files.
+
+Confirmed directly:
+- Real TronGrid data retrieved live without an API key, captured as fixtures, and replayed
+  **with the network blocked at the proxy** — the offline demo path works.
+- Etherscan's HTTP-200 rate-limit response is detected by the adapter and raised as a rate
+  limit; missing it would silently truncate a trace.
+- Failover from Etherscan to Blockscout, with one parser for both.
+- 429 and 5xx retried with jittered backoff honouring `Retry-After`; 4xx not retried.
+- Total provider failure returns a **partial result and never raises**; a partial failure keeps
+  what succeeded and records why the rest is missing.
+- Evidence written and SHA-256 hashed before parsing; paths built from server UUIDs only.
+- A missing fixture **fails the run loudly** rather than reporting an address with no activity.
+
+**Deviations and findings:**
+- **TronGrid's real unauthenticated limit is 3 rps**, not the figure NFR-01 was derived from.
+  The default is now 3.0. See OQ-01.
+- **TRON has no failover.** TronScan's terms could not be read (OQ-07), and building against
+  unread terms is not acceptable here. Documented as a gap, not shipped as a guess.
+- Fixture keys exclude time-derived parameters (ADR-016), so fixture mode serves one snapshot
+  per address regardless of the requested window.
 
 ---
 
