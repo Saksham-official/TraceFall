@@ -23,7 +23,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 5 | Wallet tracing | ☑ | 4 |
 | 6 | Graph analytics & pattern detection | ☑ | 5 |
 | 7 | VASP attribution | ◐ | 4 (5 for full value) |
-| 8 | Risk engine | ☐ | 6, 7 |
+| 8 | Risk engine | ☑ | 6, 7 |
 | 9 | AI / ML | ☐ | 7 |
 | 10 | Frontend dashboard | ◐ | 2 (mocks), 6/7/8 (real data) |
 | 11 | Investigation reports | ☐ | 8 |
@@ -506,7 +506,7 @@ itself returns `CONFIRMED` with no confidence number, and the run completes at 1
 
 ---
 
-## Phase 8 — Risk engine ☐
+## Phase 8 — Risk engine ☑
 **Depends on:** 6, 7
 
 **Goal.** A transparent, defensible score.
@@ -528,6 +528,43 @@ the score · **all four sanity anchors pass — including the exchange hot walle
 **Tests.** [TESTING_STRATEGY.md §8](TESTING_STRATEGY.md), including the property-based
 monotonicity test.
 **DoD.** Every score fully explainable from its breakdown.
+
+**Verified 2026-09-05.** 394 tests pass; ruff, `ruff format --check` and mypy `strict` clean
+across 86 source files. 31 new tests in `test_risk.py` plus pipeline and endpoint coverage.
+
+Built and confirmed directly:
+- `config/risk_weights.yaml` — all 19 signals from §3, versioned `risk-weights-v1.0`, with the
+  weights marked in the file itself as expert-reasoned rather than calibrated. Loading
+  validates: a band gap, an out-of-range weight, or confidence weights that do not sum to 1.0
+  all fail on load rather than silently changing every score in the system.
+- `risk/signals.py` — one pure evaluator per signal, no interaction between them, so the
+  breakdown adds up by hand. Every signal states its raw value and a description with concrete
+  numbers; contact signals cite their transaction hashes.
+- `risk/engine.py` — hop-decayed Group A, `min(100, round(Σ points))`, band mapping asserted at
+  every boundary, and **confidence computed separately and never multiplied in**.
+- Four signals are honestly `not_evaluated` by default and say why: `darknet_contact` (no such
+  label set), `high_risk_jurisdiction_vasp` (no jurisdiction data), `no_legitimate_activity`
+  (contract interaction is not derivable from transfers), `victim_count` (backward tracing is
+  not built). Asking the cross-case question and getting "no" is distinguished from not asking.
+- Alerts fire on sanctioned contact, mixer contact, and a `CRITICAL` band.
+- `GET /analyses/{id}/risk` returns root plus every node, with the breakdown and the disclaimer.
+
+**The sanity anchors all pass, including the one that matters.** An exchange hot wallet scored
+`HIGH` on the first run — it has every behavioural marker the heuristics look for. That is the
+documented easy way to be broken, so **Groups B and C are reported as `not_evaluated` for an
+address `CONFIRMED` as an exchange or merchant**, each with the reason stated on the signal.
+This is a scoping rule about whose behaviour is being judged, not a conditional weight: signals
+still never interact. Groups A and D still apply, so a service that itself touches a sanctioned
+address is still a finding, and a merely `PROBABLE` exchange is still scored on behaviour —
+the exemption rests on a dataset match, never on an inference.
+
+**Verified end to end** through the HTTP API, offline: the suspect scores 23 `LOW` from
+`rapid_transfer` 11.97/12, `pass_through_ratio` 8/8, `velocity` 1.96/6 and `value_magnitude`
+1.35/5 — 23.28, checkable by hand — while the confirmed exchange one hop away scores 1 with
+fifteen signals listed as not evaluated.
+
+**Outstanding.** The weights are uncalibrated by design and LIMITATIONS.md says so; calibrating
+them needs adjudicated outcome data that does not exist publicly.
 
 ---
 
