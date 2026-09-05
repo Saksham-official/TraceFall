@@ -459,9 +459,13 @@ settled question** — which is exactly why it needs a signature rather than a c
 
 **What this decision binds us to, if signed.**
 - The Dune file is **never** ingested, never committed, and never cited as provenance.
-- TronScan is a **human verification aid**, never an ingestion source — and not even that until
-  its terms of service have been read in a browser and the finding recorded here. The terms sit
-  behind a client-side route that returns 403 to every automated fetch attempted so far.
+- TronScan is **out entirely**. Its terms were read on 2026-09-05 (§6.1 and §8, quoted in
+  `research/OQ-08-tron-label-coverage.md` §3): label data is proprietary Company Materials
+  licensed for internal use only, with distribution, public display and derivative use all
+  excluded. A person may read a TronScan page to inform their own judgement; nothing from it may
+  be stored, shown, printed, or cited as provenance. **This removes one of the three
+  corroboration sources the plan below assumed**, leaving exchange disclosures, published
+  incident reports, and our own TronGrid observation.
 - `label_sources` records the URLs actually consulted, the observation date, and the role we
   assigned. Never "imported from Dune".
 - Every address is base58check-validated on ingest. A 6% invalid rate was measured in the best
@@ -475,6 +479,13 @@ settled question** — which is exactly why it needs a signature rather than a c
 **If the signer declines**, option 3 applies and costs about a day, or option 4 applies and the
 demo has no exchange answer. Both are acceptable outcomes of saying no; ingesting under an
 excluded grant is not.
+
+**What changed since drafting (2026-09-05).** TronScan's terms are now read and it is ruled out
+(above). That makes option 2 *narrower* than when this was drafted — the lead list can still
+tell us which addresses to look at, but corroboration now rests on exchanges' own published
+disclosures plus our own observation. It also makes option 3 cheaper by comparison, since both
+paths now converge on the same first-party sources. The distinction between the two is now only
+whether the Dune file is consulted to choose *which* addresses to examine.
 
 **Signed by:** _______________  **Date:** _______
 

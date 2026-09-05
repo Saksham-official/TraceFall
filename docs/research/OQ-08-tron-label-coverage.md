@@ -128,16 +128,38 @@ GitHub's API returns `license: null` for both. No licence granted means all righ
 Etherscan. An MIT licence applied downstream does not cure upstream provenance. Ethereum-only in
 any case.
 
-### Unclear — record as unclear
+### Must not use — TronScan, now that its terms have been read
 
-**TronScan's terms of service.** *Could not confirm.* The terms are at
-`https://tronscan.org/#/contracts/terms`, a client-side SPA route with no server-rendered
-content. Direct fetches of `tronscan.org`, `docs.tronscan.org` and `support.tronscan.org` from
-this machine were all returned **HTTP 403 by Cloudflare**. Attempted: WebFetch on the docs root
-and the API-key announcement, `curl` with a browser User-Agent on three hosts, and targeted web
-searches for the terms text — none returned the document body. **Someone must open that page in a
-browser and read it before any TronScan-derived label is written to `label_sources`.** Until then
-TronScan is a *manual verification aid used by a human*, never an ingestion source.
+**Read 2026-09-05** at `https://tronscan.org/contracts/terms` ("Use and Service Terms",
+White Ayn Limited / tronscan.org), through a real browser after the Cloudflare challenge
+cleared. Every earlier automated attempt returned 403, which is why this sat unresolved.
+
+Two clauses settle it.
+
+**§6.1 Acceptable Use.** You will not "use any robot, spider, crawler, scraper or other
+automated means or interface **not provided by us** to access our Services or to extract data",
+and will not "engage in Automated Data Collection (scraping) **unless such Automated Data
+Collection is confined solely to search indexing** for display on the Internet."
+
+The documented API *is* an interface provided by them, so calling `apilist.tronscan.org/api/
+account` is not caught by the robot clause. The next one is the problem.
+
+**§8 Copyrights.** "All copyright and other intellectual property rights in all content ...
+including ... **data** ... are the proprietary property of Company." The licence granted is
+"limited, nonexclusive and non-sublicensable ... for your **personal or internal business
+use**", and expressly does **not** permit "(b) the distribution, public performance or public
+display of any Company Materials; (c) modifying or otherwise making any derivative uses ...;
+or (d) any use of the Company Materials other than for their intended purposes."
+
+**Conclusion.** A TronScan `addressTag` is Company Materials. Storing one in `address_labels`,
+showing it to an investigator, and printing it in a report is distribution, public display and
+derivative use of it — all three excluded. **TronScan is not an ingestible source and is not a
+recordable provenance, through the API or otherwise.**
+
+What remains permitted is a person reading a TronScan page to inform their own judgement, the
+same way they would read a news article: that is internal use and redistributes nothing. But
+the corroboration then rests on what *we* observed, and TronScan cannot be cited as the second
+source. Section 5 step 4 below is amended accordingly.
 
 ---
 
@@ -237,9 +259,12 @@ mechanical half of that work is already done above and is reproducible in ~90 se
 3. **Observe behaviour** via TronGrid: transaction counts, in/out ratio, TRX and USDT-TRC20
    balances. Assign **role** ourselves — hot / collection / cold — from the observed shape, and
    never carry a role over from the source.
-4. **Corroborate the entity** from at least two independent public sources: TronScan
-   `addressTag`, an exchange's own disclosure, or a published incident report. **Any address with
-   one source only, or with conflicting sources, is `PROBABLE` at best — never `CONFIRMED`.**
+4. **Corroborate the entity** from at least two independent public sources. **Amended
+   2026-09-05:** TronScan can no longer be one of them — see §3. That leaves an exchange's own
+   published wallet disclosure, a published incident report, and our own TronGrid observation.
+   **Any address with one source only, or with conflicting sources, is `PROBABLE` at best —
+   never `CONFIRMED`.** In practice this makes first-party exchange disclosures the backbone of
+   the set, which is the best provenance available anyway.
 5. **Record provenance** in `label_sources`: the URLs actually consulted, the observation date,
    the role we assigned, and the reasoning. Not "imported from Dune".
 
