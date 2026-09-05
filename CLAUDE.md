@@ -6,39 +6,39 @@
 
 ## Current phase
 
-> ## PHASE 15 — SIH DEMO HARDENING (the only phase left)
-> **Every phase except 15 is complete.** Phase 9 (ML) is optional and first on the cut list;
-> Phase 10 stays ◐ only for `SHOULD`-tier extras (timeline scrubber, Quick Trace, global address
-> search) that the demo does not need.
+> ## PHASE 15 — SIH DEMO HARDENING (nearly done; two rehearsal tasks left)
+> **Every phase except 15 is complete, and 15 is built.** Phase 9 (ML) is optional and was
+> cut; Phase 10 stays ◐ only for `SHOULD`-tier extras the demo does not need.
 >
-> The product runs in Docker, end to end, offline. A run goes RETRIEVAL → NORMALIZATION →
-> TRACING → GRAPH → PATTERNS → ATTRIBUTION → RISK; an investigator signs in, reads the graph,
-> and downloads a hash-verified PDF. `docker compose up` reaches five healthy containers and the
-> seven-command first-run sequence has been executed, not just written.
+> **The demo is settled.** Four OFAC-designated TRON addresses in
+> `config/demo_addresses.yaml`, chosen by shape before any was run (OQ-15, resolved).
+> `python scripts/demo_fixtures.py --check` replays all four offline through the real tracing
+> engine and fails naming any missing fixture. Measured end to end: **70 s / 30 s / 2 s / 2 s**
+> against NFR-01's 120 s, and **1,959 evidence items, every one `is_fixture = true`.** The
+> walkthrough, its timings and the Q&A are in `docs/DEMO_SCRIPT.md`.
 >
-> **506 backend tests, 47 frontend tests, and 5 Playwright end-to-end tests against the running
-> containers.** Coverage gated per engine: 97.6% `tracing/`, 98.2% `attribution/`, 97.2%
-> `risk/`. ruff, `ruff format --check`, mypy `strict`, eslint, `tsc -b` and `vite build` all
-> clean.
+> **What is left is rehearsal, not code:** run the walkthrough on the presentation machine
+> with the network disconnected, more than once, and record one take as a fallback.
 >
-> **`CONFIRMED` attribution is real.** `data/labels/` holds 405 OFAC sanctioned addresses and 17
-> Binance TRON wallets taken from Binance's own proof-of-reserves disclosure — first-party
-> provenance, so ADR-018 was closed unadopted rather than signed. Add more exchanges with
-> `scripts/curate_exchange_labels.py` whenever their disclosures are to hand.
+> **521 backend tests, 51 frontend tests, 5 Playwright end-to-end tests** against the running
+> containers. ruff, `ruff format --check`, mypy `strict`, eslint, `tsc -b` and `vite build`
+> all clean. Coverage gated per engine: 97.6% `tracing/`, 98.2% `attribution/`, 97.2% `risk/`.
 >
-> **The deposit heuristic is measured, not asserted: precision 0.989, recall 0.186**
-> (`docs/research/OQ-09-deposit-heuristic-precision.md`). The recall figure is the one that
-> shapes how the system is described — four in five real deposit addresses have too little
-> history to classify — and **the precision must never be quoted without it**.
+> **`CONFIRMED` attribution is real.** `data/labels/` holds 405 OFAC sanctioned addresses and
+> 17 Binance TRON wallets from Binance's own proof-of-reserves — first-party provenance, so
+> ADR-018 was closed unadopted. Add more with `scripts/curate_exchange_labels.py`.
+>
+> **The deposit heuristic is measured: precision 0.989, recall 0.186**
+> (`docs/research/OQ-09-deposit-heuristic-precision.md`). The recall figure shapes how the
+> system is described — four in five real deposit addresses have too little history to
+> classify — and **the precision must never be quoted without it**.
 >
 > **Two regression locks guard the numbers.** `tests/test_golden_case.py` compares every value
 > the pipeline produces against `tests/golden/expected.json`; update it with `UPDATE_GOLDEN=1`
-> and say in the commit why the number moved. The Playwright suite guards the parts only a real
-> browser can reach.
+> and say in the commit why the number moved. The Playwright suite guards what only a real
+> browser reaches — and it can hold no more tests, because each signs in and the API allows
+> ten sign-ins per minute.
 >
-> Remaining for Phase 15: pick the demo addresses (OQ-15), capture their fixtures, rehearse the
-> walkthrough offline on the presentation machine, and check every claim against
-> LIMITATIONS.md §13.
 > Update the phase table in `IMPLEMENTATION_PLAN.md` when a phase completes, and update this
 > banner when the phase changes.
 
