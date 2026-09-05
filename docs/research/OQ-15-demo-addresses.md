@@ -14,12 +14,12 @@ Four OFAC-designated TRON addresses, all with real USDT-TRC20 flow inside the de
 ninety-day window, covering the headline multi-hop trace, a fan-out, a funnel, and — the one
 that matters most — an address the system honestly cannot identify.
 
-| Address | Role | In the window |
-|---|---|---|
-| `TUcjuVB6RFvsMgE352Kdc3VHvFvteti97B` | headline | 21 in, 20 out to 6 destinations |
-| `TWBAPzpPiZarfVsY2BLXeaLhNHurn4wkWG` | fan-out | 7 in, 15 out to 9 destinations |
-| `TLFqEhiG7RUSZ9x5iph99Ke5782dkgRnWf` | funnel | 7 in, 6 out to 2 destinations |
-| `TXoVNrqm11FFVKcF1vEND64gibVkr1HwAR` | honestly unattributable | 3 in, 1 out |
+| Address | Role | In the window | What the trace does |
+|---|---|---|---|
+| `TUcjuVB6RFvsMgE352Kdc3VHvFvteti97B` | headline | 21 in, 20 out to 6 destinations | 24 addresses, 27 edges, reaches a second OFAC-designated address, ends `MAX_DEPTH` |
+| `TWBAPzpPiZarfVsY2BLXeaLhNHurn4wkWG` | fan-out | 7 in, 15 out to 9 destinations | 2 addresses — eight of the nine branches fall below the 1% taint threshold |
+| `TLFqEhiG7RUSZ9x5iph99Ke5782dkgRnWf` | funds not moved | 7 in, 6 out to 2 destinations | 2 addresses, ends `NO_OUTFLOW` |
+| `TXoVNrqm11FFVKcF1vEND64gibVkr1HwAR` | honestly unattributable | 3 in, 1 out | root `UNATTRIBUTED`, but the trace still follows 5 addresses into high-volume services |
 
 ---
 
@@ -99,7 +99,25 @@ know?" has already been shown the answer.
 
 ---
 
-## 5. What this set does not contain
+## 5. What the traces cost, and why the fixtures are gzipped
+
+The headline trace runs into a cluster of service addresses — 10,756, 19,987 and 9,757
+transfers inside the window, each of them hitting the 10,000-per-method retrieval cap. All
+four demo traces together are **800 provider responses and about 100,000 transfers**.
+
+Uncompressed that is roughly 190 MB of committed JSON; gzipped it is 27 MB, and the
+decompression cost is invisible next to the parsing that follows. That is why
+`ingestion/fixtures.py` stores `.json.gz`.
+
+It is also the reason to keep the trace bounded. A fund flow that reaches a service does
+not become more informative by being followed further — the addresses past an exchange hot
+wallet are other customers — and the depth, taint, edge and address budgets are what stop
+this from being an unbounded crawl. The headline trace ends at `MAX_DEPTH`, and the demo
+says so rather than implying the money stopped there.
+
+---
+
+## 6. What this set does not contain
 
 **No address in the set is known to terminate at an exchange we can name.** OQ-15 asked for at
 least one that does, and it is not promised here, because whether the trace reaches a labelled

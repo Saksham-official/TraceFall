@@ -126,6 +126,10 @@ ENVIRONMENT=development
 3. **Fixture cache present and complete for all demo addresses** —
    `python scripts/demo_fixtures.py --check` replays every demo trace offline through the
    real tracing engine and exits non-zero naming any address whose fixture is missing.
+   Then **run each demo case once** and capture anything its graph still reports under
+   `unavailable_addresses` — the check reads one address's own responses, while the
+   pipeline reads the database, and a truncated counterparty can carry an edge the check
+   never sees.
 4. Full demo walkthrough executed once, end to end, on the actual presentation laptop.
 5. Screen resolution checked at 1366×768; both light and dark themes verified.
 6. **Network cable unplugged and the demo re-run**, to prove the offline path genuinely works.

@@ -26,28 +26,32 @@ addresses:
     chain: TRON
     role: headline
     why: >
-      Twenty USDT transfers out to six destinations inside the window, against
-      twenty-one in. A real multi-hop flow to follow, not a single hop dressed up as one.
+      Traces to 24 addresses over 27 edges and reaches a second OFAC-designated address on
+      the way. A real multi-hop flow to follow, not a single hop dressed up as one. It ends
+      at MAX_DEPTH rather than at an answer, which is the honest shape of a deep trace.
 
   - address: TWBAPzpPiZarfVsY2BLXeaLhNHurn4wkWG
     chain: TRON
     role: fan-out
     why: >
-      Fifteen outbound transfers spread over nine destinations — the splitting shape the
-      FAN_OUT detector exists for, on real data rather than a constructed example.
+      Fifteen outbound transfers spread over nine destinations. All but one fall below the
+      1% taint threshold, so the trace is two addresses wide and says so — the pruning rule
+      doing its job on real data, which is worth showing.
 
   - address: TLFqEhiG7RUSZ9x5iph99Ke5782dkgRnWf
     chain: TRON
-    role: funnel
+    role: funds-not-moved
     why: >
-      Six outbound transfers into two destinations. The consolidation shape, and the case
-      where the deposit-address heuristic has something to work with.
+      Six outbound transfers into two destinations, and the trace ends `NO_OUTFLOW`: the
+      money reached an address and stopped there. "The funds have not moved" and "we could
+      not look" are different findings, and this is the first one.
 
   - address: TXoVNrqm11FFVKcF1vEND64gibVkr1HwAR
     chain: TRON
     role: honestly-unattributable
     why: >
-      Three transfers in, one out. Too little behaviour to classify, so the system reports
-      UNATTRIBUTED with reason INSUFFICIENT_ACTIVITY and says what would be needed
-      instead. This is the case that earns the other three their credibility, and it is
-      the measured norm: recall on the deposit heuristic is 0.186.
+      Three transfers in, one out — too little behaviour to classify, so the root is
+      reported UNATTRIBUTED with reason INSUFFICIENT_ACTIVITY. The trace still follows the
+      one transfer that left, five addresses into a cluster of high-volume services. A
+      quiet address is not a dead end, and an unidentified one is not a failure: recall on
+      the deposit heuristic is 0.186, so this is the measured norm.

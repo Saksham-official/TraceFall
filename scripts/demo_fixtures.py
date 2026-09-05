@@ -25,6 +25,16 @@ Two deliberate differences from the pipeline, both of which make this a superset
 - **No anchor.** A demo case with a reported amount traces a smaller slice than the whole
   inbound total this walks.
 
+One difference cuts the other way and the check cannot close it. The pipeline reads each
+address's transfers back from the database, so it sees transfers that arrived in *another*
+address's response — which matters exactly where a busy address was truncated at the
+10,000-transfer retrieval cap, and its counterparty's response carries an edge its own does
+not. This script only ever sees one address's own responses, so the pipeline can reach a
+hop the check did not. **Run each demo case once after checking**, and capture anything its
+graph reports under `unavailable_addresses`:
+
+    python scripts/demo_fixtures.py --address <the one it named> --depth 0
+
 **`--check` is the pre-flight gate** ([DEPLOYMENT.md §5](../docs/DEPLOYMENT.md)). It runs
 with `LIVE_MODE=false`, makes no network call, writes nothing, and exits non-zero naming
 every address the demo would hit a gap on.
