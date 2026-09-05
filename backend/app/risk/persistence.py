@@ -14,7 +14,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.blockchain import Address, Chain
 from app.db.models.entity import Attribution
-from app.db.models.enums import AlertType, ChainCode, EntityType, RiskBand, Severity
+from app.db.models.enums import (
+    AlertType,
+    AttributionTier,
+    ChainCode,
+    EntityType,
+    RiskBand,
+    Severity,
+)
 from app.db.models.finding import Alert, RiskAssessment
 from app.risk.engine import Assessment
 
@@ -69,11 +76,18 @@ async def _alerts(
 
     Sanctions and mixer contact alert regardless of the score: those are dataset-matched
     facts an investigator must see immediately, not scores to be triaged.
+
+    **Only a `CONFIRMED` match raises one.** A deposit address that funnels into a
+    sanctioned entity is inferred to belong to that entity, and inheriting the entity type
+    is correct — but an alert reading "this address is on a sanctions list" states an
+    inference as a fact, which is the one thing this system must never do. A `PROBABLE`
+    sanctions link still reaches the investigator: it is in the attribution, with its tier
+    and its evidence, where the qualification travels with the claim.
     """
-    entity_types = {
-        address: entity_type
-        for address, entity_type in await session.execute(
-            select(Address.address, Attribution.entity_type)
+    attributions = {
+        address: (entity_type, tier)
+        for address, entity_type, tier in await session.execute(
+            select(Address.address, Attribution.entity_type, Attribution.tier)
             .join(Attribution, Attribution.address_id == Address.id)
             .where(Attribution.analysis_run_id == analysis_run_id)
         )
@@ -81,7 +95,9 @@ async def _alerts(
 
     raised = []
     for address, assessment in assessments.items():
-        entity_type = entity_types.get(address)
+        entity_type, tier = attributions.get(address, (None, None))
+        if tier is not AttributionTier.CONFIRMED:
+            entity_type = None
         if entity_type is EntityType.SANCTIONED:
             raised.append(
                 (

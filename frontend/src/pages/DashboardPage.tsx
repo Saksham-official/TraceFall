@@ -5,6 +5,7 @@ import { useCases } from '../api/queries'
 import { CASE_STATUSES, PRIORITIES } from '../api/types'
 import type { Case, CaseStatus, Priority } from '../api/types'
 import { canEdit, useAuth } from '../auth'
+import { AlertsPanel } from '../components/AlertsPanel'
 import {
   Button,
   Card,
@@ -160,17 +161,7 @@ export function DashboardPage() {
             ))}
         </div>
 
-        <Card>
-          <h2 className="font-semibold">Alerts</h2>
-          <div className="mt-3">
-            <EmptyState title="No alerts">
-              <p>
-                Sanctioned-address contact, mixer contact, and cross-case matches appear here once
-                the alerting pipeline is built in Phase 8.
-              </p>
-            </EmptyState>
-          </div>
-        </Card>
+        <AlertsPanel />
       </div>
     </div>
   )

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { query, request } from './client'
 import type {
+  Alert,
   Analysis,
   AttributionRow,
   AnalysisAccepted,
@@ -195,5 +196,35 @@ export function useGenerateReport(caseId: string) {
     mutationFn: (body: { analysis_run_id: string; format?: 'PDF' | 'JSON' | 'CSV' }) =>
       request<ReportRow>(`/cases/${caseId}/reports`, { method: 'POST', body }),
     onSuccess: () => client.invalidateQueries({ queryKey: resultKeys.reports(caseId) }),
+  })
+}
+
+// --- alerts -------------------------------------------------------------------
+
+export const alertKeys = {
+  open: ['alerts', 'open'] as const,
+  forCase: (caseId: string) => ['case', caseId, 'alerts'] as const,
+}
+
+/** Unacknowledged alerts across every case the user may see (FR-101). */
+export function useOpenAlerts() {
+  return useQuery({
+    queryKey: alertKeys.open,
+    queryFn: () => request<Page<Alert>>('/alerts?unacknowledged=true'),
+  })
+}
+
+export function useCaseAlerts(caseId: string) {
+  return useQuery({
+    queryKey: alertKeys.forCase(caseId),
+    queryFn: () => request<Page<Alert>>(`/cases/${caseId}/alerts`),
+  })
+}
+
+export function useAcknowledgeAlert() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => request<Alert>(`/alerts/${id}/acknowledge`, { method: 'POST' }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['alerts'] }),
   })
 }

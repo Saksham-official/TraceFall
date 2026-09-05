@@ -406,3 +406,26 @@ export interface ReportRow {
   download_url: string
   content_verified: boolean | null
 }
+
+export const ALERT_TYPES = [
+  'SANCTIONED_CONTACT',
+  'MIXER_CONTACT',
+  'CRITICAL_RISK',
+  'CROSS_CASE_MATCH',
+] as const
+export type AlertType = (typeof ALERT_TYPES)[number]
+
+export interface Alert {
+  id: number
+  case_id: string
+  analysis_run_id: string | null
+  alert_type: AlertType
+  severity: 'LOW' | 'MEDIUM' | 'HIGH'
+  address: string | null
+  /** The sentence the investigator reads. Written where the alert is raised. */
+  trigger_reason: string
+  source_finding_type: string | null
+  acknowledged_at: string | null
+  acknowledged_by: number | null
+  created_at: string
+}
