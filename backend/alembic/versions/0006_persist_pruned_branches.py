@@ -30,9 +30,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "traces",
-        sa.Column(
-            "unavailable", JSONB(), nullable=False, server_default=sa.text("'[]'::jsonb")
-        ),
+        sa.Column("unavailable", JSONB(), nullable=False, server_default=sa.text("'[]'::jsonb")),
     )
     op.add_column(
         "trace_nodes",
