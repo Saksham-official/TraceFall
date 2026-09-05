@@ -1,0 +1,18 @@
+# Keep the build context small and free of anything secret or machine-specific.
+.git
+.github
+**/.venv
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+frontend/dist
+docs
+var
+.playwright-mcp
+# Never in an image, and never in a build context either.
+.env
+.env.*
+!.env.example
