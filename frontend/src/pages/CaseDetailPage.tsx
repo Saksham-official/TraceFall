@@ -3,39 +3,47 @@ import { Link, useParams } from 'react-router-dom'
 import {
   useCase,
   useCaseAddresses,
+  useCaseAlerts,
   useCaseAnalyses,
   useCaseTimeline,
   ANALYSIS_IS_ACTIVE,
 } from '../api/queries'
 import { canEdit, useAuth } from '../auth'
 import { AddressChip } from '../components/AddressChip'
-import { Tabs } from '../components/Tabs'
-import { Button, Card, EmptyState, ErrorNotice, LaterPhase, Spinner } from '../components/ui'
+import { Button, Card, EmptyState, ErrorNotice, Spinner } from '../components/ui'
 import { formatDate, formatDateTime, formatInr } from '../lib/format'
 
-/** The four header cards of FRONTEND_SPEC §4, honest about what is not computed yet. */
-function HeaderCards() {
-  const cards = [
-    { title: 'Risk', phase: 'Phase 7' },
-    { title: 'Traced', phase: 'Phase 4' },
-    { title: 'Terminals', phase: 'Phase 4' },
-    { title: 'Exchanges', phase: 'Phase 6' },
-  ]
+/**
+ * Alerts raised on this case (FR-101). Shown before anything else, because an alert is
+ * the system saying an investigator should not have to go looking.
+ */
+function CaseAlerts({ caseId }: { caseId: string }) {
+  const alerts = useCaseAlerts(caseId)
+  const items = alerts.data?.items ?? []
+  if (items.length === 0) return null
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {cards.map((card) => (
-        <div
-          key={card.title}
-          className="rounded border border-dashed border-[var(--border)] p-3"
-        >
-          <p className="text-xs font-medium tracking-wide text-[var(--muted)] uppercase">
-            {card.title}
-          </p>
-          <p className="text-xl font-semibold text-[var(--muted)]">—</p>
-          <p className="text-xs text-[var(--muted)]">not computed until {card.phase}</p>
-        </div>
-      ))}
-    </div>
+    <Card className="p-0">
+      <h2 className="border-b border-[var(--border)] px-3 py-2 font-semibold">
+        Alerts on this case
+      </h2>
+      <ul>
+        {items.map((alert) => (
+          <li key={alert.id} className="flex flex-wrap items-baseline gap-2 px-3 py-2">
+            <span
+              className={`risk-${alert.severity} rounded border px-1.5 py-0.5 text-xs font-medium`}
+            >
+              {alert.severity}
+            </span>
+            <span>{alert.trigger_reason}</span>
+            {alert.acknowledged_at && (
+              <span className="ml-auto text-xs text-[var(--muted)]">
+                acknowledged {formatDateTime(alert.acknowledged_at)}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Card>
   )
 }
 
@@ -44,6 +52,10 @@ function Overview({ caseId }: { caseId: string }) {
   const addresses = useCaseAddresses(caseId)
   const analyses = useCaseAnalyses(caseId)
   const timeline = useCaseTimeline(caseId)
+  // The graph, patterns, attribution, risk and evidence all live in the investigation
+  // workspace, against one run. Duplicating them here would mean two answers to the same
+  // question, drifting apart.
+  const newest = analyses.data?.find((run) => run.status === 'COMPLETED' || run.status === 'PARTIAL')
 
   return (
     <div className="flex flex-col gap-4">
@@ -111,7 +123,14 @@ function Overview({ caseId }: { caseId: string }) {
       </Card>
 
       <Card>
-        <h2 className="font-semibold">Analysis runs</h2>
+        <div className="flex flex-wrap items-baseline gap-3">
+          <h2 className="font-semibold">Analysis runs</h2>
+          {newest && (
+            <Link to={`/analyses/${newest.id}/investigation`} className="ml-auto">
+              <Button>Open findings</Button>
+            </Link>
+          )}
+        </div>
         {analyses.isPending && <Spinner label="Loading runs…" />}
         {analyses.isError && <ErrorNotice error={analyses.error} />}
         {analyses.data &&
@@ -161,11 +180,6 @@ function Overview({ caseId }: { caseId: string }) {
           </ul>
         )}
       </Card>
-
-      <p className="text-[var(--muted)]">
-        The plain-language summary of where the money went is written by the analysis pipeline and
-        arrives with Phase 6.
-      </p>
     </div>
   )
 }
@@ -201,38 +215,9 @@ export function CaseDetailPage() {
         )}
       </div>
 
-      <HeaderCards />
+      <CaseAlerts caseId={caseId} />
+      <Overview caseId={caseId} />
 
-      <Tabs
-        tabs={[
-          { id: 'overview', label: 'Overview', render: () => <Overview caseId={caseId} /> },
-          {
-            id: 'graph',
-            label: 'Graph',
-            render: () => <LaterPhase what="The fund-flow graph" phase="Phase 5" />,
-          },
-          {
-            id: 'transactions',
-            label: 'Transactions',
-            render: () => <LaterPhase what="The transactions table" phase="Phase 3" />,
-          },
-          {
-            id: 'patterns',
-            label: 'Patterns',
-            render: () => <LaterPhase what="Pattern detection" phase="Phase 5" />,
-          },
-          {
-            id: 'attribution',
-            label: 'Attribution',
-            render: () => <LaterPhase what="Entity attribution" phase="Phase 6" />,
-          },
-          {
-            id: 'evidence',
-            label: 'Evidence',
-            render: () => <LaterPhase what="The evidence ledger" phase="Phase 3" />,
-          },
-        ]}
-      />
     </div>
   )
 }

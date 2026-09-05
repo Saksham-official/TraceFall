@@ -139,18 +139,6 @@ export function EmptyState({
   )
 }
 
-/** Used for tabs whose API lands in a later phase. It never fakes data. */
-export function LaterPhase({ what, phase }: { what: string; phase: string }) {
-  return (
-    <EmptyState title={`${what} is available in a later phase`}>
-      <p>
-        The analysis pipeline that produces this data is built in {phase}. Nothing is shown here
-        rather than showing something that is not real.
-      </p>
-    </EmptyState>
-  )
-}
-
 export function Spinner({ label }: { label: string }) {
   return (
     <p role="status" className="p-4 text-[var(--muted)]">
