@@ -26,7 +26,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 8 | Risk engine | ☑ | 6, 7 |
 | 9 | AI / ML | ☐ | 7 |
 | 10 | Frontend dashboard | ◐ | 2 (mocks), 6/7/8 (real data) |
-| 11 | Investigation reports | ☐ | 8 |
+| 11 | Investigation reports | ☑ | 8 |
 | 12 | Security hardening | ☐ | 2, 10 |
 | 13 | Testing & QA | ☐ | all |
 | 14 | Deployment | ☐ | 10 |
@@ -641,7 +641,7 @@ Phase 12 item that is worth pulling forward — the client already sends `creden
 
 ---
 
-## Phase 11 — Investigation reports ☐
+## Phase 11 — Investigation reports ☑
 **Depends on:** 8
 
 **Goal.** A document that can be attached to a case file.
@@ -663,6 +663,51 @@ introduces an address or upgrades attribution language is rejected and the templ
 **Tests.** Section presence · fact-accuracy comparison against the database · hash verification
 · LLM validation rejection cases · fallback path · export formats.
 **DoD.** A report is generated that an investigator could genuinely attach to a case file.
+
+**Verified 2026-09-05.** 408 tests pass; ruff, `ruff format --check` and mypy `strict` clean
+across 92 source files. 14 new tests in `test_reports.py`.
+
+**Two open questions were closed to build this**, both recorded as ADRs:
+- **ADR-020 — ReportLab, not WeasyPrint (OQ-12).** WeasyPrint needs Pango, Cairo and
+  GDK-PixBuf as system packages. ReportLab is `pip install` and nothing else, so a fresh clone
+  generates a report with no system setup — the same property that makes `LIVE_MODE=false` the
+  default. The iteration-speed argument for WeasyPrint was the stronger one on paper; it loses
+  because this report is a form with a fixed structure, not a design surface.
+- **ADR-021 — templated narrative, no LLM (OQ-13).** LIMITATIONS.md already recommends template
+  mode for anything entering a case file, so the LLM path would exist only for the case where
+  that recommendation is ignored — and it would need the whole safety apparatus (address and
+  hash rejection, tier-language checking, fallback) to protect prose nobody should use.
+  MVP_SCOPE.md §6 lists it as the second thing to cut; this is that cut, taken deliberately
+  rather than under deadline. `NarrativeSource.LLM` stays in the schema and nothing writes it.
+
+Built and confirmed directly:
+- `reports/assemble.py` reads every fact from stored rows and re-derives nothing, so the report
+  cannot disagree with the screen it came from. A test compares its output against the database
+  row by row.
+- `reports/pdf.py` renders all eight sections from PRODUCT_SPEC.md stage 13. **The attribution
+  tier is printed as a word, never encoded as colour** — a report photocopied in greyscale must
+  keep the distinction. Risk signals print with points, maximum and a plain-language reason, and
+  `not_evaluated` is printed as its own table so a missing signal never reads as a zero. Every
+  pattern prints its `false_positive_note` beside it.
+- `reports/generator.py` hashes **exactly the bytes written to disk** before storing them, and
+  `verify()` re-hashes. A tampered file fails verification; there is a test that appends a byte.
+- PDF, JSON and CSV all generate; the evidence appendix lists every transaction hash the
+  findings rest on; the six disclaimers from LIMITATIONS.md §13 print in full.
+- `POST /cases/{id}/reports`, `GET /cases/{id}/reports`, `GET /reports/{id}` and
+  `GET /reports/{id}/download`, all case-isolated with 404 rather than 403.
+
+**Found while rendering, and fixed:** a raw amount printed as `5.000E+7`. `str()` on a NUMERIC
+returns scientific notation, which is not an acceptable way to show an exact integer in a
+document that goes into a case file. Amounts now print as plain digits, asserted by a test.
+
+**Deviation from the plan, deliberate.** API_SPEC.md describes report generation as
+202-and-poll. It is synchronous here: every fact is already in the database and generation takes
+well under a second, so a poll loop would be machinery with no user waiting on it. If generation
+ever grows heavy it moves onto the existing job queue rather than growing a second one.
+
+**Outstanding.** Graph image rendering is not built — the PDF describes the flow in tables
+rather than embedding a picture of it. Pinned findings are not surfaced first, because pinning
+is not implemented.
 
 ---
 
