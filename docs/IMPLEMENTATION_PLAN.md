@@ -28,7 +28,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 10 | Frontend dashboard | ◐ | 2 (mocks), 6/7/8 (real data) |
 | 11 | Investigation reports | ☑ | 8 |
 | 12 | Security hardening | ☑ | 2, 10 |
-| 13 | Testing & QA | ☐ | all |
+| 13 | Testing & QA | ◐ | all |
 | 14 | Deployment | ☐ | 10 |
 | 15 | SIH demo hardening | ☐ | 13, 14 |
 
@@ -803,7 +803,7 @@ and no default credentials in any build.
 
 ---
 
-## Phase 13 — Testing & QA ☐
+## Phase 13 — Testing & QA ◐
 **Depends on:** all · **Written alongside each phase, consolidated here**
 
 **Goal.** The full pyramid, with the golden case locked.
@@ -821,6 +821,43 @@ against NFR-01/02/03 · load check at five concurrent analyses · CI wiring.
 **the golden case produces bit-identical expected output** · precision gate enforced ·
 performance targets met.
 **DoD.** CI green; the golden case locks the numbers that go into reports.
+
+**Largely delivered 2026-09-05.** 484 backend and 47 frontend tests pass. Coverage measured
+rather than asserted for the first time: **97.6% `tracing/`, 98.2% `attribution/`, 97.2%
+`risk/`**, 94% overall — all three gates now enforced individually in CI, because a
+whole-project average lets one engine rot behind the others.
+
+- **The golden case (`tests/test_golden_case.py`) is the centrepiece.** The whole pipeline runs
+  over committed provider-shaped fixtures, offline, and every number is compared against
+  `tests/golden/expected.json`. It locks the taint at each node, the pruned dust branch, both
+  attribution tiers with the chained-inference confidence, the pattern findings, every risk score
+  and signal, and the report headline. Updating it needs `UPDATE_GOLDEN=1` and an explanation of
+  why the number moved — if you cannot explain it, that is the bug.
+- The five remaining §12 scenarios in `test_end_to_end.py`: mixer (stops at the boundary, alert
+  raised), no-movement (`NO_OUTFLOW`, framed as good news), unattributable (report still
+  generates and is useful), cross-case correlation, and degraded (`PARTIAL`, `DATA_UNAVAILABLE`,
+  and never `NO_OUTFLOW`).
+- `test_performance.py` verifies NFR-01 (fixture pipeline under 120 s), NFR-02 (p95 under 500 ms
+  across all four results endpoints), NFR-03 (the 500-node cap holds and the graph work stays
+  under budget on a 900-node trace), and the five-concurrent-analyses load check.
+- `test_api_contract.py` reads the OpenAPI schema and asserts **every one of the 29 documented
+  operations has a test and rejects an anonymous caller**, with the three public routes named
+  explicitly so adding a fourth is a deliberate decision.
+
+**The bug the golden case was written to find, and found immediately.** `worker.py` imported
+`patterns.base` but never `patterns.detectors`, so no `@register` decorator had ever run in the
+pipeline and the registry was empty. **Every analysis had been reporting zero pattern findings
+as though it had looked** — a silent smaller answer that looked exactly like a clean trace, and
+one that four earlier pipeline and API tests had accepted. `run_all` now records a gap rather
+than an empty result when it has no detectors, and importing the package registers them.
+
+**Outstanding.**
+1. **Playwright E2E is not built.** The seven flows are covered at the app level by vitest
+   render tests against a stubbed API, and the real stack has been driven by hand in a browser —
+   but there is no committed suite that runs against a live deployment. It belongs with Phase 14,
+   where the compose stack it needs to drive will exist.
+2. **The attribution precision gate is unenforceable**, not unimplemented: it needs the labelled
+   hold-out set, which needs the exchange labels blocked on ADR-018.
 
 ---
 
