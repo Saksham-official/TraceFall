@@ -16,6 +16,11 @@ import { defineConfig, devices } from '@playwright/test'
  * Point them elsewhere with E2E_BASE_URL, and supply credentials with E2E_EMAIL and
  * E2E_PASSWORD. Nothing is hard-coded, because a password in a committed config is a
  * password in the repository.
+ *
+ * **Every test signs in, and the API allows ten sign-ins per minute per IP.** Sharing one
+ * saved session instead was tried and does not work: the refresh cookie rotates on use, so
+ * the second test to restore it presents a token the first already spent. Adding tests past
+ * that ceiling means raising `LOGIN_PER_IP` for the test environment, not working around it.
  */
 export default defineConfig({
   testDir: './e2e',

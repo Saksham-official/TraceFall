@@ -15,12 +15,14 @@ import { readFileSync } from 'node:fs'
 
 import { expect, test, type Page } from '@playwright/test'
 
-const EMAIL = process.env.E2E_EMAIL ?? 'admin@example.gov'
-const PASSWORD = process.env.E2E_PASSWORD ?? 'correct-horse-battery-staple'
-
 // A Binance TRON wallet from their own proof-of-reserves disclosure, and the address our
 // committed fixtures cover — so this runs offline against the fixture cache.
 const FIXTURED_ADDRESS = 'TMuA6YqfCeX8EhbfYEg5y7S4DqzSJireY9'
+
+// Every test signs in. The API allows ten sign-ins per minute per IP, which is the
+// ceiling on how many tests this file can hold — see playwright.config.ts.
+const EMAIL = process.env.E2E_EMAIL ?? 'admin@example.gov'
+const PASSWORD = process.env.E2E_PASSWORD ?? 'correct-horse-battery-staple'
 
 async function signIn(page: Page) {
   await page.goto('/')
@@ -82,6 +84,26 @@ test.describe('investigation journey', () => {
       timeout: 60_000,
     })
     await expect(page.getByText(/sha256/i).first()).toBeVisible()
+
+    // --- Alerts: the trace touched a sanctioned address, and the system says so unasked ---
+    // Folded into this test rather than given its own, because each sign-in counts against
+    // the API's ten-per-minute login limit.
+    await page.getByRole('link', { name: 'TraceFall' }).click()
+    const alert = page
+      .getByRole('listitem')
+      .filter({ hasText: /Sanctioned address in this trace/i })
+      .first()
+    await expect(alert).toBeVisible()
+    // The severity is a word, not only a colour (NFR-18). Scoped to the alert, because the
+    // priority filter's <option>HIGH</option> also matches "HIGH" on this page.
+    await expect(alert.getByText('HIGH')).toBeVisible()
+
+    const before = await page.getByRole('button', { name: 'Acknowledge' }).count()
+    await page.getByRole('button', { name: 'Acknowledge' }).first().click()
+    // Acknowledging removes it from the open list; it does not delete the record.
+    await expect
+      .poll(() => page.getByRole('button', { name: 'Acknowledge' }).count())
+      .toBeLessThan(before)
   })
 
   test('a report downloads as a real PDF, not a 401 error page', async ({ page }) => {

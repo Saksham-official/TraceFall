@@ -43,3 +43,5 @@ var/
 # Playwright output.
 frontend/test-results/
 frontend/playwright-report/
+# A saved sign-in, written by the e2e setup project.
+frontend/e2e/.auth/
