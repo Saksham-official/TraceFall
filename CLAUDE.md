@@ -206,7 +206,7 @@ docs/             this planning package
 
 Attribution tiers `CONFIRMED` / `PROBABLE` / `UNATTRIBUTED` · risk bands `LOW` / `MEDIUM` /
 `HIGH` / `CRITICAL` · termination reasons `MAX_DEPTH` / `BELOW_THRESHOLD` / `SERVICE_BOUNDARY` /
-`NO_OUTFLOW` / `EDGE_BUDGET` / `TIME_WINDOW` · chains `TRON` / `ETHEREUM` · the canonical model
+`NO_OUTFLOW` / `EDGE_BUDGET` / `TIME_WINDOW` / `DATA_UNAVAILABLE` (ADR-019) · chains `TRON` / `ETHEREUM` · the canonical model
 is `Transfer` (one row per value movement) · API prefix `/api/v1`.
 
 ---

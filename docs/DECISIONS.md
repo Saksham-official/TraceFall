@@ -477,3 +477,47 @@ demo has no exchange answer. Both are acceptable outcomes of saying no; ingestin
 excluded grant is not.
 
 **Signed by:** _______________  **Date:** _______
+
+---
+
+## ADR-019 — "We could not look" is a seventh termination reason
+
+**Status:** Accepted · **Date:** 2026-09-05 · **Resolves:** OQ-18
+
+**Context.** Retrieval fetches only the root address. A multi-hop trace therefore has to
+fetch each address it discovers, and that fetch can fail: a missing fixture, a provider
+outage, a rate limit. When it did, the engine saw an empty transfer list and terminated the
+node as `NO_OUTFLOW`.
+
+**The problem.** `NO_OUTFLOW` is a *finding* — "the funds have not moved on", which is good
+news an investigator acts on. "We could not look" is the absence of a finding. Presenting
+one as the other is the silent degradation principle 12 forbids, and on a fixture-mode demo
+it is the common case rather than an edge case.
+
+**Options.**
+1. Carry it as a per-node degradation in JSONB, leaving `termination_reason` NULL. No
+   migration, but it breaks the invariant that every terminal node states why it stopped,
+   and puts the honest half of the answer in a column nobody selects.
+2. Fail the whole run when any discovered address cannot be fetched. Safe, but one rate
+   limit then costs the entire trace — and partial answers are explicitly worth having.
+3. **Add `DATA_UNAVAILABLE` as a seventh `TerminationReason`.**
+
+**Chosen:** option 3, with migration `0005_data_unavailable`.
+
+**Why.** The termination reason is exactly the field that says why a branch ended, and this
+is a reason a branch ends. Options 1 and 2 were both cheaper — option 1 was the one this
+ADR was expected to take — but they buy that cheapness by making the model less honest,
+which is the wrong trade in the one place the product cannot afford it. The engine now
+raises `TransfersUnavailable` from its fetch callback, so the algorithm stays pure and
+network-free while still distinguishing "nothing there" from "could not see".
+
+**Trade-offs.**
+- This **changes a documented invariant**: CLAUDE.md section 5 named six termination reasons
+  and now names seven. Both documents are updated, and `TerminationReason` is a database
+  enum, so a stale consumer fails loudly rather than silently.
+- It **breaks the front-loaded-migration rule** recorded in Phase 2, which existed so that
+  parallel phases would not generate migrations concurrently and fork the chain. With work
+  proceeding serially there is nothing to fork, and `0005` extends the chain cleanly.
+  `ALTER TYPE ... ADD VALUE` is transactional on PostgreSQL 12 and later.
+- A trace that hits this reason is **`PARTIAL`, never `COMPLETED`**, and the run's
+  degradations name every address that could not be fetched.

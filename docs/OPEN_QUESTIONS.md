@@ -146,7 +146,10 @@ consistent sweep patterns, publicly discussed. Fifty verified addresses would be
 revisiting ADR-001 and leading the demo with Ethereum instead. Better to discover it in week one
 than in week four.
 
-### OQ-18 · How does a trace report an address it could not fetch?
+### OQ-18 · How does a trace report an address it could not fetch? — **ANSWERED**
+**Answered 2026-09-05 by ADR-019:** a seventh termination reason, `DATA_UNAVAILABLE`. The
+cheaper JSONB-degradation option was rejected for making the model less honest in the one place
+it cannot afford to be. Original framing follows.
 **Raised 2026-09-05, while wiring Phase 6.** Retrieval fetches only the root address, so a
 multi-hop trace must fetch each address it discovers. When that fetch fails — a missing fixture,
 a provider outage, a rate limit — the tracing engine currently sees no outflow and terminates the
