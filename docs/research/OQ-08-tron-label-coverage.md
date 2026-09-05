@@ -319,3 +319,32 @@ curl -s "https://apilist.tronscan.org/api/account?address=TCz47XgC9TjCeF4UzfB6qZ
 # the lead list
 curl -s "https://raw.githubusercontent.com/duneanalytics/spellbook/main/dbt_subprojects/hourly_spellbook/models/_sector/cex/addresses/chains/tron/cex_tron_addresses.sql"
 ```
+
+---
+
+## 7. Source reachability, measured 2026-09-05
+
+Re-checked from the development machine after TronScan's terms were read, because which
+sources are *reachable* now decides as much as which are *permitted*.
+
+| Source | Permitted? | Reachable? | Usable for provenance |
+|---|---|---|---|
+| OFAC via `0xB10C` (MIT) | Yes | Yes | **Yes — ingested, 405 addresses** |
+| TronGrid `/v1/accounts/{addr}` | Yes | Yes (HTTP 200) | **Yes — behavioural observation** |
+| TronScan `addressTag` | **No** (§6.1, §8) | n/a | No, at all |
+| Dune `spellbook` lead list | Only under ADR-018 | Yes (raw.githubusercontent) | Lead list only, never provenance |
+| OKX proof-of-reserves | Yes (first-party) | **No** — request times out | Not from here |
+| Binance proof-of-reserves | Yes (first-party) | **No** — 202 challenge, no addresses in the body | Not from here |
+| CoinDCX proof-of-reserves | Yes (first-party) | Page loads, **contains no addresses** | Not from here |
+
+**The consequence, stated plainly.** Corroboration needs two independent sources (§5 step 4).
+TronScan is excluded and the first-party disclosure pages are unreachable from this machine, so
+only *one* source remains available here — our own TronGrid observation. Under this document's
+own rule that yields **`PROBABLE` at best, never `CONFIRMED`**, even with ADR-018 signed.
+
+**The way round it does not need ADR-018 at all.** The exchange disclosure pages are ordinary
+web pages that work from a normal browser; they fail only from this environment. A person
+opening them and transcribing the addresses gives a *first-party* provenance, which is the
+strongest available and needs no facts-versus-compilation judgement. That path produces
+`CONFIRMED` labels and leaves ADR-018 relevant only to gaining breadth beyond what the
+exchanges publish themselves.
