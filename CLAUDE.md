@@ -6,59 +6,41 @@
 
 ## Current phase
 
-> ## DEMO-READY — PHASE 15 (SIH demo hardening) NEXT
-> **Phases 0–8 and 11–14 are complete; 13 is largely done. The product works end to end, offline, through the
-> UI.** Phase 10 (frontend) has its investigation workspace; Phase 7 stays ◐ for one reason
-> only, below.
+> ## PHASE 15 — SIH DEMO HARDENING (the only phase left)
+> **Every phase except 15 is complete.** Phase 9 (ML) is optional and first on the cut list;
+> Phase 10 stays ◐ only for `SHOULD`-tier extras (timeline scrubber, Quick Trace, global address
+> search) that the demo does not need.
 >
-> A run goes RETRIEVAL → NORMALIZATION → TRACING → GRAPH → PATTERNS → ATTRIBUTION → RISK, and
-> an investigator can sign in, open the findings, read the graph, and download a PDF for the
-> case file. **Verified in a real browser against the running stack**, including that a page
-> reload keeps the session and that the refresh cookie is invisible to script.
+> The product runs in Docker, end to end, offline. A run goes RETRIEVAL → NORMALIZATION →
+> TRACING → GRAPH → PATTERNS → ATTRIBUTION → RISK; an investigator signs in, reads the graph,
+> and downloads a hash-verified PDF. `docker compose up` reaches five healthy containers and the
+> seven-command first-run sequence has been executed, not just written.
 >
-> 484 backend tests and 47 frontend tests pass, with no network access. Coverage is measured
-> and gated per engine: **97.6% `tracing/`, 98.2% `attribution/`, 97.2% `risk/`**. ruff, `ruff
-> format --check` and mypy `strict` are clean across 94 source files; eslint, `tsc -b` and
-> `vite build` are clean. The migration chain applies to an empty database.
+> **506 backend tests, 47 frontend tests, and 5 Playwright end-to-end tests against the running
+> containers.** Coverage gated per engine: 97.6% `tracing/`, 98.2% `attribution/`, 97.2%
+> `risk/`. ruff, `ruff format --check`, mypy `strict`, eslint, `tsc -b` and `vite build` all
+> clean.
 >
-> **The golden case is the regression lock.** `tests/test_golden_case.py` runs the whole
-> pipeline over committed fixtures and compares every number against `tests/golden/expected.json`
-> — taint per node, both attribution tiers, pattern findings, every risk signal, the report
-> headline. Changing one of those numbers fails CI. Update it with `UPDATE_GOLDEN=1` and say in
-> the commit why the number moved.
+> **`CONFIRMED` attribution is real.** `data/labels/` holds 405 OFAC sanctioned addresses and 17
+> Binance TRON wallets taken from Binance's own proof-of-reserves disclosure — first-party
+> provenance, so ADR-018 was closed unadopted rather than signed. Add more exchanges with
+> `scripts/curate_exchange_labels.py` whenever their disclosures are to hand.
 >
-> **Provider reality, measured (`docs/research/OQ-01-provider-rate-limits.md`):** TronGrid
-> without a key sustains only 0.5 req/s *per RPC method*; Blockscout is Ethereum's primary
-> because Etherscan now rejects keyless requests. Retrieval happens twice — the root address up
-> front, then every address the trace discovers — so a cold live trace is bounded by that rate,
-> and in fixture mode every hop past a fixtured address ends `DATA_UNAVAILABLE`.
+> **The deposit heuristic is measured, not asserted: precision 0.989, recall 0.186**
+> (`docs/research/OQ-09-deposit-heuristic-precision.md`). The recall figure is the one that
+> shapes how the system is described — four in five real deposit addresses have too little
+> history to classify — and **the precision must never be quoted without it**.
 >
-> **The one thing blocking Phase 7 is not code.** `data/labels/ofac_sanctioned.json` holds 405
-> real sanctioned addresses, so `CONFIRMED` means sanctions only and a real deposit address
-> resolves to "a deposit address for an unidentified service". The engine is ready for exchange
-> labels and proven to use them — the demo uses one hand-added label. Curating a real set needs
-> **ADR-018 signed by a named person** (drafted, in DECISIONS.md) and **TronScan's terms read in
-> a browser**. Highest-leverage hour of work left (MVP_SCOPE.md §6).
+> **Two regression locks guard the numbers.** `tests/test_golden_case.py` compares every value
+> the pipeline produces against `tests/golden/expected.json`; update it with `UPDATE_GOLDEN=1`
+> and say in the commit why the number moved. The Playwright suite guards the parts only a real
+> browser can reach.
 >
-> **Security posture.** Headers and CSP on every response, per-IP and per-user rate limiting,
-> production refusing to boot on a development configuration, an httpOnly refresh cookie, and
-> secrets redacted from logs. **Sign-in is single-factor** — TOTP MFA is specified and not
-> built, which LIMITATIONS.md §11 now states.
->
-> **`docker compose up` works and has been run.** Five containers healthy, the seven-command
-> first-run sequence completed, an investigation end to end through nginx producing a
-> hash-verified PDF, data surviving `down`/`up`, and every retrieval served from the fixture
-> cache (`evidence_items.is_fixture` was `t` for all of them — no provider contacted). Eight
-> bugs were found and fixed in the process, none of which a developer machine could have shown.
-> Verified on macOS/arm64, Docker 29.7.2. `docs/DEPLOYMENT.md` records the tested sequence.
->
-> Remaining: **15 (SIH demo hardening)** and the tail of 13 — Playwright E2E, which can now
-> drive the compose stack. Phase 9 (ML) is optional and first on the cut list.
+> Remaining for Phase 15: pick the demo addresses (OQ-15), capture their fixtures, rehearse the
+> walkthrough offline on the presentation machine, and check every claim against
+> LIMITATIONS.md §13.
 > Update the phase table in `IMPLEMENTATION_PLAN.md` when a phase completes, and update this
 > banner when the phase changes.
->
-> Outstanding from Phase 1: `docker compose up` has not been run (Docker is not installed on
-> the development machine).
 
 ---
 
