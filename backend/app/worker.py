@@ -64,6 +64,8 @@ log = logging.getLogger("worker")
 HEARTBEAT = Path("/tmp/tracefall-worker-heartbeat")  # noqa: S108
 STALE_AFTER_SECONDS = 30
 POLL_TIMEOUT_SECONDS = 5
+# Backoff after a queue read fails, so a persistent outage does not become a busy loop.
+RECONNECT_SECONDS = 3
 
 
 def beat() -> None:
@@ -470,14 +472,50 @@ async def _reclaim_stale_runs() -> None:
         await session.commit()
 
 
+async def _wait_for_schema(timeout_seconds: float = 120.0) -> bool:
+    """Block until the tables exist, rather than crashing because they do not yet.
+
+    On a first deployment the stack comes up before `alembic upgrade head` is run — that
+    is the documented order — so the worker would query `analysis_runs` and exit 1 before
+    the operator had a chance to migrate. Waiting is the honest behaviour: the worker has
+    nothing to do until the schema is there, and saying so beats a restart loop full of
+    tracebacks.
+    """
+    deadline = time.monotonic() + timeout_seconds
+    announced = False
+    while time.monotonic() < deadline:
+        beat()
+        try:
+            async with SessionFactory() as session:
+                await session.execute(select(AnalysisRun.id).limit(1))
+            return True
+        except Exception:  # noqa: BLE001 — any failure here means "not ready yet"
+            if not announced:
+                log.info("waiting for the database schema; run alembic upgrade head")
+                announced = True
+            await asyncio.sleep(2)
+    log.error("schema did not appear within %.0fs; exiting", timeout_seconds)
+    return False
+
+
 async def main() -> None:
     configure_logging()
     beat()
+    if not await _wait_for_schema():
+        sys.exit(1)
     await _reclaim_stale_runs()
     log.info("worker ready")
     while True:
         beat()
-        raw = await queue.dequeue(timeout=POLL_TIMEOUT_SECONDS)
+        try:
+            raw = await queue.dequeue(timeout=POLL_TIMEOUT_SECONDS)
+        except Exception:  # noqa: BLE001 — the queue is infrastructure, not a job
+            # One unreachable moment must not end the worker. Exiting here turned a
+            # transient Redis blip into a restart loop, and the container's restart
+            # policy then hid it as "restarting" rather than reporting it.
+            log.warning("could not read the queue; retrying", exc_info=True)
+            await asyncio.sleep(RECONNECT_SECONDS)
+            continue
         if raw is None:
             continue
         try:
