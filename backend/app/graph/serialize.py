@@ -45,6 +45,10 @@ def cap(graph: TraceGraph, max_nodes: int = DEFAULT_MAX_NODES) -> tuple[TraceGra
     keep = set(mandatory) | set(optional[: max(0, max_nodes - len(mandatory))])
     capped: TraceGraph = graph.subgraph(keep).copy()
     capped.graph.update(graph.graph)
+    # `truncated` means nodes were actually dropped, not merely that a cap was applied.
+    # A graph whose mandatory nodes happen to fill the cap loses nothing, and raising a
+    # false alarm teaches investigators to ignore the flag that matters.
+    truncated = capped.number_of_nodes() < graph.number_of_nodes()
 
     # Each surviving node records what was cut from under it, so the UI can offer the
     # "+N more" affordance rather than pretending the branch ended.
@@ -52,7 +56,7 @@ def cap(graph: TraceGraph, max_nodes: int = DEFAULT_MAX_NODES) -> tuple[TraceGra
         omitted = [target for target in graph.successors(address) if target not in keep]
         if omitted:
             capped.nodes[address]["omitted_successors"] = len(omitted)
-    return capped, True
+    return capped, truncated
 
 
 def render(graph: TraceGraph, max_nodes: int = DEFAULT_MAX_NODES) -> dict[str, Any]:

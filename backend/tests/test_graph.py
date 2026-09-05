@@ -247,8 +247,10 @@ async def test_the_cap_keeps_the_answer_even_when_it_cannot_keep_the_number() ->
 
     capped, truncated = serialize.cap(builder.build(result), max_nodes=5)
 
-    assert truncated is True
     assert capped.number_of_nodes() == 61
+    # Nothing was dropped, so nothing is claimed to have been. `truncated` reports what
+    # actually happened, not that a cap was applied.
+    assert truncated is False
 
 
 async def test_a_capped_node_says_how_many_branches_are_hidden() -> None:
