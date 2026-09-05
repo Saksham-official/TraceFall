@@ -111,7 +111,9 @@ TronScan out entirely** — its label data is proprietary Company Materials lice
 use only, with distribution, public display and derivative use all excluded. Details and the
 quoted clauses are in [research/OQ-08-tron-label-coverage.md §3](research/OQ-08-tron-label-coverage.md).
 The remaining permitted sources are OFAC (ingested), exchanges' own published disclosures, and
-our own TronGrid observation. **ADR-018 still needs a signature** before curation begins.
+our own TronGrid observation. **ADR-018 was closed unadopted**: first-party disclosures are
+better provenance than the corroboration it was written to justify, and need no legal judgement,
+so the Dune lead list is not used at all.
 **Partially answered 2026-09-05** — see
 [research/OQ-08-tron-label-coverage.md](research/OQ-08-tron-label-coverage.md). OFAC via the
 `0xB10C` repository is MIT and usable. Several candidates are ruled out. **One answer is still

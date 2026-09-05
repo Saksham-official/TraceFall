@@ -424,9 +424,11 @@ matter. Running a second trace from the swap output is the manual workaround.
 
 ## ADR-018 — Label provenance is what we observed, not where we got the idea
 
-**Status:** ⚠️ **Proposed — needs a named signer before any exchange label is ingested.**
-Everything below is drafted; the decision itself is a legal judgement and belongs to a person,
-not to a commit. · **Date drafted:** 2026-09-05
+**Status:** **Not adopted — the project took a path that does not need it.** Kept, not deleted,
+because the reasoning is what justifies *rejecting* the Dune file, and because the question
+returns the moment anyone wants breadth beyond what exchanges publish themselves. It still
+requires a named signer if it is ever adopted. · **Date drafted:** 2026-09-05 ·
+**Closed 2026-09-05**
 
 **Context.** `CONFIRMED` attribution requires a curated set of exchange hot-wallet addresses
 (FR-71, [MVP_SCOPE.md §6](MVP_SCOPE.md)). The research in
@@ -487,7 +489,25 @@ disclosures plus our own observation. It also makes option 3 cheaper by comparis
 paths now converge on the same first-party sources. The distinction between the two is now only
 whether the Dune file is consulted to choose *which* addresses to examine.
 
-**Signed by:** _______________  **Date:** _______
+**Why it was not needed, 2026-09-05.** Two findings landed after drafting and together they
+made the whole question avoidable:
+
+1. **TronScan is excluded** (its terms, finally read — §6.1 and §8). That removed one of the
+   three corroboration sources this plan assumed, so option 2 could no longer produce a
+   `CONFIRMED` label at all: one remaining source yields `PROBABLE` at best, by this document's
+   own rule.
+2. **Exchanges publish their own wallet addresses.** A first-party disclosure is the strongest
+   provenance available — better than the two-source corroboration this ADR was designed to
+   justify — and it involves no compilation, no BSL, and no facts-versus-expression judgement.
+
+So the label set is being built from exchanges' own published disclosures, transcribed by a
+person, then validated and behaviourally verified by `scripts/curate_exchange_labels.py`. That
+path is simply outside this ADR's scope.
+
+**What would bring it back.** Wanting more addresses than the exchanges publish. At that point
+someone must decide the facts-versus-compilation question above and sign for it.
+
+**Signed by:** _______________  **Date:** _______  *(unsigned; not adopted)*
 
 ---
 
