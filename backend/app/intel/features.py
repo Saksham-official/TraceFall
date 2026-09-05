@@ -116,7 +116,7 @@ def extract(
     """
     moved = [t for t in transfers if t.succeeded]
     if asset_key is None:
-        asset_key = _dominant_asset(moved, address)
+        asset_key = dominant_asset(moved, address)
 
     scoped = [t for t in moved if t.asset_key == asset_key] if asset_key else []
     inbound = sorted(
@@ -149,11 +149,19 @@ def extract(
     )
 
 
-def _dominant_asset(transfers: list[NormalizedTransfer], address: str) -> str | None:
+def dominant_asset(transfers: list[NormalizedTransfer], address: str) -> str | None:
+    """The asset this address handles most, chosen by transfer count.
+
+    **By count, never by amount.** Raw amounts at different precisions are not comparable,
+    so summing them to find "the biggest" hands the answer to whichever token has the most
+    decimals — a dusted lookalike or a junk airdrop beats real USDT every time. Counting
+    transfers compares like with like.
+
+    Ties are broken by asset key so the result is deterministic across runs.
+    """
     touching = [t for t in transfers if address in (t.from_address, t.to_address)]
     if not touching:
         return None
-    # Ties broken by asset key so the result is deterministic across runs.
     counts = Counter(t.asset_key for t in touching)
     return min(counts.items(), key=lambda item: (-item[1], item[0]))[0]
 
