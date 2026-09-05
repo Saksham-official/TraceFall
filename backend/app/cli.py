@@ -7,6 +7,7 @@ import argparse
 import asyncio
 import getpass
 import sys
+from pathlib import Path
 
 from sqlalchemy import select
 
@@ -14,6 +15,9 @@ from app.core.security import MIN_PASSWORD_LENGTH, hash_password
 from app.db.models.enums import UserRole
 from app.db.models.user import User
 from app.db.session import SessionFactory
+from app.labels import loader
+
+DEFAULT_LABELS_DIR = Path(__file__).resolve().parents[2] / "data" / "labels"
 
 # Passwords that clear the length rule but are still guessable. Entries shorter than
 # MIN_PASSWORD_LENGTH would be unreachable, so every entry here is long enough to matter.
@@ -60,16 +64,41 @@ async def create_admin(email: str | None, full_name: str | None) -> int:
     return 0
 
 
+async def load_labels(directory: Path) -> int:
+    """Ingest the curated label datasets. Re-running it changes nothing."""
+    if not directory.is_dir():
+        print(f"No label directory at {directory}", file=sys.stderr)
+        return 1
+
+    failed = False
+    async with SessionFactory() as session:
+        for summary in await loader.ingest_directory(session, directory):
+            print(
+                f"{summary.source}: {summary.labels_written} new labels, "
+                f"{summary.entities_written} entities, {summary.addresses_written} addresses"
+            )
+            for address, reason in summary.rejected:
+                # Rejections are printed, never swallowed: a dataset that silently loses
+                # 6% of its rows is worse than one that fails loudly.
+                print(f"  rejected {address}: {reason}", file=sys.stderr)
+                failed = True
+    return 1 if failed else 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="tracefall")
     sub = parser.add_subparsers(dest="command", required=True)
     admin = sub.add_parser("create-admin", help="Create an administrator account")
     admin.add_argument("--email")
     admin.add_argument("--full-name")
+    labels = sub.add_parser("load-labels", help="Ingest the curated label datasets")
+    labels.add_argument("--directory", type=Path, default=DEFAULT_LABELS_DIR)
 
     args = parser.parse_args()
     if args.command == "create-admin":
         return asyncio.run(create_admin(args.email, args.full_name))
+    if args.command == "load-labels":
+        return asyncio.run(load_labels(args.directory))
     return 1
 
 
