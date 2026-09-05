@@ -117,6 +117,10 @@ data. Ingesting a dataset we are not permitted to use is both a legal problem an
 embarrassment in a Ministry of Home Affairs problem statement.
 **Resolve by:** reading each dataset's licence individually and recording it in its
 `label_sources` row. **No dataset is ingested until its licence is confirmed and written down.**
+*Enforced in code 2026-09-05:* a label dataset with no `licence` field fails to parse, so an
+unlicensed dataset cannot reach the database. OFAC is ingested (405 addresses). **The ADR
+resolving the facts-versus-compilation judgement still needs a named signer**, and TronScan's
+terms still need reading in a browser; both gate the exchange label set.
 
 ### OQ-08 · Is there adequate public label coverage for **TRON** exchange hot wallets?
 **Answered 2026-09-05: yes, by curation.** Full findings in
@@ -148,6 +152,9 @@ than in week four.
 **Resolve by:** measuring against known deposit addresses and known look-alikes once the label
 set exists. **Prioritise precision over recall** — this is the number that decides whether a
 legal request goes to the right institution.
+*Status 2026-09-05:* implemented as six weighted signals in `attribution/decision.py` at exactly
+these defaults, versioned as engine `1.0.0` and marked in code as uncalibrated. Still unmeasured
+— it needs the label set from OQ-07.
 
 ---
 

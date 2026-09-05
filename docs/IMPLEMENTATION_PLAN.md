@@ -22,7 +22,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 4 | Transaction normalization | ☑ | 3 |
 | 5 | Wallet tracing | ☑ | 4 |
 | 6 | Graph analytics & pattern detection | ☐ | 5 |
-| 7 | VASP attribution | ☐ | 4 (5 for full value) |
+| 7 | VASP attribution | ◐ | 4 (5 for full value) |
 | 8 | Risk engine | ☐ | 6, 7 |
 | 9 | AI / ML | ☐ | 7 |
 | 10 | Frontend dashboard | ◐ | 2 (mocks), 6/7/8 (real data) |
@@ -361,7 +361,7 @@ and honest about their limits.
 
 ---
 
-## Phase 7 — VASP attribution ☐
+## Phase 7 — VASP attribution ◐
 **Depends on:** 4 · **Enables:** 8, 9 · **Runs in parallel with:** 5, 6
 
 **Goal.** Answer PS26183, with the three-tier discipline intact.
@@ -396,6 +396,52 @@ committed with documented licences.
 > **This phase carries the most project risk.** The label curation is not a scripted import —
 > it is careful manual work, and its quality determines whether the demo has an answer.
 > See [MVP_SCOPE.md §6](MVP_SCOPE.md).
+
+**Engine built 2026-09-05.** 293 tests pass; ruff, `ruff format --check` and mypy `strict`
+clean across 72 source files. 54 new tests across `test_labels.py`, `test_intel_features.py`,
+`test_attribution.py` (the pure integrity suite) and `test_attribution_engine.py`.
+
+Built and confirmed directly:
+- `labels/{loader,matcher}.py` — datasets are self-describing JSON carrying source name, URL,
+  licence, reliability and date; a dataset with no licence **fails to parse**, so OQ-07's rule
+  that nothing is ingested until its licence is written down is enforced by the schema. Every
+  address is base58check / EIP-55 validated on ingest (the mandatory OQ-08 lesson); a malformed
+  row is rejected and reported, and costs its own label rather than the dataset. Re-ingestion is
+  a no-op; a refreshed dataset date is picked up.
+- **`data/labels/ofac_sanctioned.json` — 405 real sanctioned addresses (281 TRON, 124
+  Ethereum)**, regenerable by `scripts/fetch_ofac_labels.py` from the MIT-licensed `0xB10C`
+  extraction of OFAC's SDN list. Zero addresses in it failed validation. `tracefall load-labels`
+  ingests it.
+- `intel/{features,service}.py` — the §4 behavioural signals over stored transfers. Ratios are
+  `Fraction`, never float; value-weighted signals are scoped to one asset for the same reason a
+  trace is; failed transfers are excluded from behaviour; an unmeasurable signal is `None`, never
+  zero. Profiles are stored and not recomputed for unchanged data.
+- `attribution/{decision,engine}.py` — the §7 procedure, pure and database-free. Dataset match →
+  `CONFIRMED` citing source and date. **Conflicting sources produce `PROBABLE` with both claims
+  and neither entity** — the measured MaskEX/UEEx case. Deposit funnel → `PROBABLE`, with
+  confidence multiplied by a `PROBABLE` destination's own confidence and capped at 0.95, never
+  1.0. Insufficient activity, a contract, and no service behaviour each end `UNATTRIBUTED` with a
+  named reason. Every finding carries its evidence and its look-alikes.
+- `ServiceBoundaryChecker` supplies the callback Phase 5 shipped without — and **only a
+  `CONFIRMED` service stops a trace**, so a sanctioned personal wallet is a finding rather than a
+  boundary.
+
+**Outstanding — this phase is not done.**
+1. **The exchange label set does not exist yet.** Without it every `CONFIRMED` is a sanctions
+   hit, and the chained inference has nothing to sweep *to*: a deposit address resolves to "a
+   deposit address for an unidentified service". This is the single highest-leverage hour of work
+   in the project ([MVP_SCOPE.md §6](MVP_SCOPE.md)) and the engine is ready to receive it.
+   It is gated on two things named in
+   [research/OQ-08-tron-label-coverage.md §6](research/OQ-08-tron-label-coverage.md): **an ADR
+   with a named signer** resolving OQ-07's facts-versus-compilation judgement, and **reading
+   TronScan's terms of service in a browser**.
+2. **Contract classification (§7 step 2) is not implemented.** A contract is currently
+   `UNATTRIBUTED` with reason `UNIDENTIFIED_CONTRACT` rather than typed, and `is_contract` is
+   never populated — no caller passes it.
+3. **The precision ≥ 0.95 gate is unmeasured.** It needs the labelled hold-out set, which needs
+   item 1. The thresholds are OQ-09's reasoned defaults, not calibrated ones.
+4. **Investigator override (`SHOULD`)** — the table exists, no endpoint does.
+5. Attribution is not called by the pipeline; `worker.py` still stops after NORMALIZATION.
 
 ---
 
