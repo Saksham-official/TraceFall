@@ -1,7 +1,8 @@
-"""Persisting a trace, and loading the transfers it runs on.
+"""Persisting a trace.
 
 Kept separate from the engine so the algorithm stays pure and offline-testable: the
-engine never touches a database.
+engine never touches a database. Reading transfers back out of the canonical layer lives
+in `intel/service.py`, which every consumer shares rather than each keeping its own copy.
 """
 
 import logging
@@ -12,56 +13,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models.analysis import AnalysisRun, Trace, TraceEdge, TraceNode
-from app.db.models.blockchain import Address, Asset, Chain, Transfer
+from app.db.models.blockchain import Address, Asset, Chain
 from app.db.models.enums import ChainCode, TaintModel
-from app.normalize.transfer import NormalizedTransfer
 from app.tracing.models import TraceResult
 
 log = logging.getLogger(__name__)
-
-
-async def load_transfers(
-    session: AsyncSession, chain: ChainCode, address: str
-) -> list[NormalizedTransfer]:
-    """Read one address's normalized transfers back out of the canonical layer."""
-    rows = await session.execute(
-        select(Transfer, Address.address, Asset)
-        .join(Chain, Chain.id == Transfer.chain_id)
-        .join(Asset, Asset.id == Transfer.asset_id)
-        .join(Address, Address.id == Transfer.from_address_id)
-        .where(Chain.code == chain)
-    )
-    # Resolving both endpoints needs a second lookup; build an id->address map once
-    # rather than joining the address table twice.
-    address_rows = await session.execute(select(Address.id, Address.address))
-    names: dict[int, str] = {row_id: name for row_id, name in address_rows.all()}
-
-    out: list[NormalizedTransfer] = []
-    for transfer, _from_name, asset in rows:
-        sender = names.get(transfer.from_address_id)
-        recipient = names.get(transfer.to_address_id)
-        if sender is None or recipient is None:
-            continue
-        if address not in (sender, recipient):
-            continue
-        out.append(
-            NormalizedTransfer(
-                chain=chain,
-                tx_hash=transfer.tx_hash,
-                transfer_index=transfer.transfer_index,
-                block_number=transfer.block_number,
-                block_time=transfer.block_time,
-                from_address=sender,
-                to_address=recipient,
-                amount_raw=int(transfer.amount_raw),
-                status=transfer.status,
-                asset_symbol=asset.symbol,
-                asset_contract=asset.contract_address,
-                decimals=transfer.decimals,
-                is_internal=transfer.is_internal,
-            )
-        )
-    return out
 
 
 async def _address_ids(

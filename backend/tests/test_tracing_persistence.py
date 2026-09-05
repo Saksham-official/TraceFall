@@ -12,6 +12,7 @@ from app.db.models.analysis import TraceNode as TraceNodeRow
 from app.db.models.blockchain import Address, Asset, Chain
 from app.db.models.case import Case
 from app.db.models.enums import AnalysisStatus, ChainCode, TaintModel, TerminationReason
+from app.intel import service as intel
 from app.tracing import persistence
 from app.tracing.engine import trace
 from app.tracing.models import TraceParams
@@ -140,8 +141,8 @@ async def test_loading_transfers_back_from_the_canonical_layer(
     session: AsyncSession,
 ) -> None:
     """Phase 4 writes transfers; the tracer reads them back through this path."""
-    loaded = await persistence.load_transfers(session, ChainCode.TRON, "NOBODY")
-    assert loaded == []
+    loaded = await intel.load_transfers(session, ChainCode.TRON, ["NOBODY"])
+    assert loaded == {"NOBODY": []}
 
 
 async def test_trace_rows_reference_their_analysis_run(session: AsyncSession) -> None:
