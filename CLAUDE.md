@@ -6,20 +6,18 @@
 
 ## Current phase
 
-> ## DEMO-READY — PHASE 12 (security hardening) NEXT
-> **Phases 0–8 and 11 are complete. The product works end to end, offline, through the UI.**
-> Phase 10 (frontend) has its investigation workspace; Phase 7 stays ◐ for one reason only,
-> below.
+> ## DEMO-READY — PHASE 13 (testing & QA) NEXT
+> **Phases 0–8, 11 and 12 are complete. The product works end to end, offline, through the
+> UI.** Phase 10 (frontend) has its investigation workspace; Phase 7 stays ◐ for one reason
+> only, below.
 >
 > A run goes RETRIEVAL → NORMALIZATION → TRACING → GRAPH → PATTERNS → ATTRIBUTION → RISK, and
 > an investigator can sign in, open the findings, read the graph, and download a PDF for the
-> case file. **Verified in a real browser against the running stack.** A suspect address
-> sweeping to a labelled exchange reports `PROBABLE — <exchange>, 0.80` by `DEPOSIT_HEURISTIC`
-> with its evidence, the exchange itself reports `CONFIRMED` with no confidence number, and the
-> risk score shows every signal it added up.
+> case file. **Verified in a real browser against the running stack**, including that a page
+> reload keeps the session and that the refresh cookie is invisible to script.
 >
-> 410 backend tests and 45 frontend tests pass, with no network access. ruff, `ruff format
-> --check` and mypy `strict` are clean across 92 source files; eslint, `tsc -b` and
+> 435 backend tests and 47 frontend tests pass, with no network access. ruff, `ruff format
+> --check` and mypy `strict` are clean across 94 source files; eslint, `tsc -b` and
 > `vite build` are clean. The migration chain applies to an empty database.
 >
 > **Provider reality, measured (`docs/research/OQ-01-provider-rate-limits.md`):** TronGrid
@@ -31,16 +29,17 @@
 > **The one thing blocking Phase 7 is not code.** `data/labels/ofac_sanctioned.json` holds 405
 > real sanctioned addresses, so `CONFIRMED` means sanctions only and a real deposit address
 > resolves to "a deposit address for an unidentified service". The engine is ready for exchange
-> labels and proven to use them — the demo above uses one hand-added label. Curating a real set
-> needs **ADR-018 signed by a named person** (drafted, in DECISIONS.md) and **TronScan's terms
-> read in a browser**. Highest-leverage hour of work left (MVP_SCOPE.md §6).
+> labels and proven to use them — the demo uses one hand-added label. Curating a real set needs
+> **ADR-018 signed by a named person** (drafted, in DECISIONS.md) and **TronScan's terms read in
+> a browser**. Highest-leverage hour of work left (MVP_SCOPE.md §6).
 >
-> **Known gap that shows in a demo:** the refresh token is returned in the response body and
-> held in memory, so a page reload signs the user out. Issuing it as an httpOnly cookie is a
-> Phase 12 item worth pulling forward; the client already sends `credentials: 'include'`.
+> **Security posture.** Headers and CSP on every response, per-IP and per-user rate limiting,
+> production refusing to boot on a development configuration, an httpOnly refresh cookie, and
+> secrets redacted from logs. **Sign-in is single-factor** — TOTP MFA is specified and not
+> built, which LIMITATIONS.md §11 now states.
 >
-> Remaining phases: **12 (security hardening)**, 13 (testing and QA), 14 (deployment), 15 (SIH
-> demo hardening). Phase 9 (ML) is optional and first on the cut list.
+> Remaining phases: **13 (testing & QA)**, 14 (deployment), 15 (SIH demo hardening). Phase 9
+> (ML) is optional and first on the cut list.
 > Update the phase table in `IMPLEMENTATION_PLAN.md` when a phase completes, and update this
 > banner when the phase changes.
 >
