@@ -27,7 +27,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 9 | AI / ML | ☐ | 7 |
 | 10 | Frontend dashboard | ◐ | 2 (mocks), 6/7/8 (real data) |
 | 11 | Investigation reports | ☑ | 8 |
-| 12 | Security hardening | ☐ | 2, 10 |
+| 12 | Security hardening | ☑ | 2, 10 |
 | 13 | Testing & QA | ☐ | all |
 | 14 | Deployment | ☐ | 10 |
 | 15 | SIH demo hardening | ☐ | 13, 14 |
@@ -735,7 +735,7 @@ is not implemented.
 
 ---
 
-## Phase 12 — Security hardening ☐
+## Phase 12 — Security hardening ☑
 **Depends on:** 2, 10 · **Begin incrementally from Phase 2**
 
 **Goal.** Everything in [SECURITY.md](SECURITY.md), verified rather than assumed.
@@ -756,6 +756,50 @@ default credentials in any build · rate limits enforced · error responses leak
 security scans clean.
 **Tests.** [TESTING_STRATEGY.md §10](TESTING_STRATEGY.md) plus the security suite.
 **DoD.** Security tests pass; a manual review against `SECURITY.md` finds no gaps.
+
+**Verified 2026-09-05.** 435 backend and 47 frontend tests pass; ruff, `ruff format --check`
+and mypy `strict` clean across 94 source files. 25 new tests in `test_security.py`.
+
+Built and confirmed directly:
+- `core/headers.py` — CSP of `default-src 'none'` plus `frame-ancestors 'none'`, and
+  `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` and
+  `Cache-Control: no-store` on **every** response, error responses included. HSTS is production
+  only: sending it from a dev server pins the developer's browser to HTTPS on localhost.
+- `core/ratelimit.py` — Redis-backed fixed windows, per-IP in middleware and per-user from the
+  authenticated dependency (middleware runs before the token is decoded, so it cannot know who
+  is calling). Login is limited **by address, not by the email tried** — an attacker rotates the
+  email, not the socket. Health is exempt so orchestration cannot be throttled out. The limiter
+  **fails open** when Redis is unreachable, because a limiter that takes the API down when its
+  cache blinks has caused the worse outage. `X-Forwarded-For` is trusted only when configured,
+  since in front of a balancer an attacker sets it themselves for a fresh bucket per request.
+- **Production refuses to start on a development configuration** — a placeholder or
+  low-variety `SECRET_KEY`, a plain-HTTP or wildcard CORS origin, rate limiting disabled, or a
+  database still pointed at localhost. Each is invisible until exploited; boot is the only place
+  it gets noticed. Development is deliberately not held to these rules.
+- Frontend session restore from the httpOnly refresh cookie. **Verified in a real browser:**
+  sign in, reload the page, still on the same workspace URL; the cookie is `HttpOnly`,
+  `SameSite=Lax`, scoped to `/api/v1/auth`, and `document.cookie` is empty.
+
+**Two real holes the new suite found, both fixed:**
+1. **`POST /auth/refresh` rejected a body of `{}` with 422** — precisely what a browser sends
+   after a reload. The endpoint's own docstring described that call; `RefreshRequest.refresh_token`
+   was required, so the documented recovery path did not work for the client it was written for.
+2. **The log redactor missed JSON-quoted keys.** `{"secret_key": "s3cr3t"}` passed straight
+   through, and JSON is this application's log format — so a logged settings dict leaked every
+   secret in it, which is the one thing the redactor exists to prevent.
+
+**Already satisfied before this phase**, and re-checked rather than rebuilt: gitleaks in
+pre-commit and CI, `pip-audit` and `npm audit` in CI, append-only enforcement by database
+triggers (ADR-015 chose these over role grants), case isolation returning 404 rather than 403,
+and no default credentials in any build.
+
+**Deliberately not built, with reasons.**
+- **SSRF protection on `callback_url`** — there is no `callback_url` anywhere in the codebase.
+  The integration-ready API it belongs to is not built, so this is a guard for a field that does
+  not exist. It lands with that endpoint or not at all.
+- **API key management for the integration endpoint** — same reason.
+- **TOTP MFA** (`SHOULD`) — not built. Single-factor sign-in is the current state and
+  LIMITATIONS.md should say so before any deployment beyond a demo.
 
 ---
 
