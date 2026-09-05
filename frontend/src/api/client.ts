@@ -4,11 +4,13 @@
  * Tokens are held in module memory only — never localStorage, sessionStorage, or a
  * cookie readable by script, so an XSS cannot exfiltrate a session.
  *
- * The refresh token is *also* in memory, which means a page reload ends the session.
- * That is deliberate: `POST /auth/refresh` currently takes the refresh token in the
- * request body and sets no cookie, so there is no httpOnly cookie to fall back on.
- * `credentials: 'include'` is set on every request so that when the backend starts
- * issuing the refresh token as an httpOnly cookie, reload-survival needs no change here.
+ * The refresh token is *also* held in memory, but it is not the only copy: the backend
+ * issues it as an httpOnly cookie scoped to the auth routes, which script cannot read and
+ * so cannot exfiltrate. That cookie is what survives a page reload — `restoreSession()`
+ * calls `POST /auth/refresh` with no body at all and the browser supplies it.
+ *
+ * Every request sends `credentials: 'include'` so the cookie travels on the one route
+ * that needs it.
  */
 
 import type { ApiErrorBody, TokenResponse } from './types'
@@ -102,11 +104,13 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
 }
 
 async function refreshSession(): Promise<boolean> {
-  if (!refreshToken) return false
   refreshInFlight ??= (async () => {
+    // The body carries the in-memory token when there is one, for a client with no
+    // cookie jar. With none, the httpOnly cookie alone is enough — which is exactly the
+    // page-reload case.
     const response = await send('/auth/refresh', {
       method: 'POST',
-      body: { refresh_token: refreshToken },
+      body: refreshToken ? { refresh_token: refreshToken } : {},
       skipAuthRetry: true,
     })
     if (!response.ok) return false
@@ -135,6 +139,25 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   const payload = await parse(response)
   if (!response.ok) throw toApiError(response.status, payload)
   return payload as T
+}
+
+/**
+ * Rebuild a session from the httpOnly refresh cookie, if the browser still holds one.
+ *
+ * Called once at start-up. Returns the signed-in user, or null when there is no cookie,
+ * it has expired, or it has been revoked — all of which are the ordinary "please sign in"
+ * case rather than an error worth showing.
+ */
+export async function restoreSession(): Promise<TokenResponse['user'] | null> {
+  const response = await send('/auth/refresh', {
+    method: 'POST',
+    body: {},
+    skipAuthRetry: true,
+  })
+  if (!response.ok) return null
+  const tokens = (await parse(response)) as TokenResponse
+  setTokens(tokens)
+  return tokens.user
 }
 
 export function query(params: Record<string, string | number | undefined | null>): string {

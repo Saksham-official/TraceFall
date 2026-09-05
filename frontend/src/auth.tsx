@@ -4,11 +4,20 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 
-import { clearTokens, request, setSessionExpiredHandler, setTokens } from './api/client'
+import {
+  clearTokens,
+  request,
+  restoreSession,
+  setSessionExpiredHandler,
+  setTokens,
+} from './api/client'
 import type { TokenResponse, User } from './api/types'
+import { Spinner } from './components/ui'
 
 interface AuthValue {
   user: User | null
+  /** True until the start-up session restore has finished, so routes do not flash. */
+  restoring: boolean
   /** True when the session ended on its own — shown on the login screen. */
   sessionExpired: boolean
   login: (email: string, password: string) => Promise<void>
@@ -20,6 +29,24 @@ const AuthContext = createContext<AuthValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [sessionExpired, setSessionExpired] = useState(false)
+  const [restoring, setRestoring] = useState(true)
+
+  // A reload loses the in-memory tokens but not the httpOnly refresh cookie, so the
+  // session can be rebuilt from it. Without this, pasting a workspace URL into a new tab
+  // always lands on the sign-in screen.
+  useEffect(() => {
+    let cancelled = false
+    void restoreSession()
+      .then((restored) => {
+        if (!cancelled && restored) setUser(restored)
+      })
+      .finally(() => {
+        if (!cancelled) setRestoring(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     setSessionExpiredHandler(() => {
@@ -53,8 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ user, sessionExpired, login, logout }),
-    [user, sessionExpired, login, logout],
+    () => ({ user, restoring, sessionExpired, login, logout }),
+    [user, restoring, sessionExpired, login, logout],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
@@ -66,8 +93,11 @@ export function useAuth(): AuthValue {
 }
 
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { user, restoring } = useAuth()
   const location = useLocation()
+  // Redirecting mid-restore would bounce a reloading user to the sign-in screen and
+  // discard where they were going.
+  if (restoring) return <Spinner label="Restoring session" />
   if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />
   return <>{children}</>
 }

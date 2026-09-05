@@ -111,7 +111,10 @@ describe('suspect address intake', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add address' }))
 
     await screen.findByText('Address added')
-    const post = calls.find((call) => call.method === 'POST')
+    // Name the call: the first POST is now the start-up session restore.
+    const post = calls.find(
+      (call) => call.method === 'POST' && call.url === '/api/v1/cases/c1/addresses',
+    )
     expect(post?.body).toMatchObject({
       address: VALID_TRON,
       reported_amount: { value: '40000', asset_symbol: 'USDT' },

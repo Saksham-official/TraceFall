@@ -15,8 +15,22 @@ export interface StubRoute {
   body?: unknown
 }
 
+/**
+ * The session-restore call every app start-up makes. A test browser holds no httpOnly
+ * refresh cookie, so 401 is the truthful answer — and it is only a default, so a test
+ * about reload-survival can stub a successful one instead.
+ */
+const NO_REFRESH_COOKIE: StubRoute = {
+  match: 'POST /api/v1/auth/refresh',
+  status: 401,
+  body: { error: { code: 'UNAUTHENTICATED', message: 'No refresh token was supplied' } },
+}
+
 /** Routes fetch by method and path; an unmatched call fails the test loudly. */
 export function stubFetch(routes: StubRoute[]) {
+  const withDefaults = routes.some((route) => route.match === NO_REFRESH_COOKIE.match)
+    ? routes
+    : [...routes, NO_REFRESH_COOKIE]
   const calls: { url: string; method: string; body: unknown }[] = []
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
@@ -26,7 +40,7 @@ export function stubFetch(routes: StubRoute[]) {
       method,
       body: typeof init?.body === 'string' ? JSON.parse(init.body) : undefined,
     })
-    const route = routes.find((candidate) => candidate.match === `${method} ${url}`)
+    const route = withDefaults.find((candidate) => candidate.match === `${method} ${url}`)
     if (!route) throw new Error(`Unstubbed request: ${method} ${url}`)
     const status = route.status ?? 200
     return new Response(route.body === undefined ? null : JSON.stringify(route.body), {

@@ -31,7 +31,8 @@ const EMPTY_CASES = {
   body: { items: [], next_cursor: null, has_more: false },
 }
 
-function signIn() {
+async function signIn() {
+  await screen.findByLabelText(/password/i)
   fireEvent.change(screen.getByLabelText(/email/i), { target: { value: USER.email } })
   fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'correct horse' } })
   fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
@@ -40,10 +41,12 @@ function signIn() {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('login and protected routes', () => {
-  it('sends an unauthenticated visitor to the sign-in screen', () => {
+  it('sends an unauthenticated visitor to the sign-in screen', async () => {
     stubFetch([])
     renderApp(<App />, '/cases/new')
-    expect(screen.getByRole('heading', { name: 'TraceFall' })).toBeInTheDocument()
+    // Start-up first asks whether an httpOnly refresh cookie can restore a session; the
+    // sign-in screen appears once that answer is no.
+    expect(await screen.findByRole('heading', { name: 'TraceFall' })).toBeInTheDocument()
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
   })
 
@@ -54,7 +57,7 @@ describe('login and protected routes', () => {
       EMPTY_CASES,
     ])
     renderApp(<App />, '/')
-    signIn()
+    await signIn()
 
     expect(await screen.findByRole('heading', { name: 'Cases' })).toBeInTheDocument()
     expect(JSON.stringify(localStorage)).not.toContain('access-1')
@@ -73,7 +76,7 @@ describe('login and protected routes', () => {
       },
     ])
     renderApp(<App />, '/')
-    signIn()
+    await signIn()
 
     expect(await screen.findByText('Incorrect email or password')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Cases' })).not.toBeInTheDocument()
@@ -95,10 +98,41 @@ describe('login and protected routes', () => {
       },
     ])
     renderApp(<App />, '/')
-    signIn()
+    await signIn()
 
     await waitFor(() => expect(screen.getByText('Your session expired')).toBeInTheDocument())
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
+  })
+
+  it('restores a session from the httpOnly refresh cookie on reload', async () => {
+    // The in-memory tokens are gone after a reload; the cookie is not, and the browser
+    // sends it. Without this, pasting a case URL into a new tab always lands on sign-in.
+    stubFetch([
+      { match: 'POST /api/v1/auth/refresh', body: TOKENS },
+      HEALTH,
+      EMPTY_CASES,
+    ])
+
+    renderApp(<App />, '/')
+
+    expect(await screen.findByRole('heading', { name: 'Cases' })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps the restored session out of web storage too', async () => {
+    stubFetch([
+      { match: 'POST /api/v1/auth/refresh', body: TOKENS },
+      HEALTH,
+      EMPTY_CASES,
+    ])
+
+    renderApp(<App />, '/')
+    await screen.findByRole('heading', { name: 'Cases' })
+
+    // The whole point of the httpOnly cookie is that script never holds the credential.
+    expect(JSON.stringify(localStorage)).not.toContain('refresh-1')
+    expect(JSON.stringify(sessionStorage)).not.toContain('refresh-1')
+    expect(document.cookie).not.toContain('refresh-1')
   })
 
   it('signs out on request and revokes the refresh token server-side', async () => {
@@ -109,7 +143,7 @@ describe('login and protected routes', () => {
       { match: 'POST /api/v1/auth/logout', status: 204 },
     ])
     renderApp(<App />, '/')
-    signIn()
+    await signIn()
     await screen.findByRole('heading', { name: 'Cases' })
 
     fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
