@@ -29,6 +29,7 @@ Nothing is written until you have seen the table. Add `--write` when it looks ri
 import argparse
 import json
 import sys
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -44,6 +45,15 @@ from app.db.models.enums import ChainCode  # noqa: E402
 
 TRONGRID = "https://api.trongrid.io/v1/accounts/{address}"
 OUTPUT_DIR = ROOT / "data" / "labels"
+
+# TronGrid without a key sustains about 3 requests per second and suspends a caller that
+# exceeds it (DATA_SOURCES.md §1, measured). Curating twenty addresses is not worth being
+# throttled for, so calls are spaced and a 429 is retried rather than recorded as
+# "unverified" — an address wrongly marked unverified is one a human then has to check by
+# hand for no reason.
+REQUEST_SPACING_SECONDS = 1.5
+RETRY_BACKOFF_SECONDS = 12.0
+MAX_ATTEMPTS = 4
 
 # A hot wallet moves constantly in both directions; a collection wallet is overwhelmingly
 # inbound; a cold wallet holds a great deal and moves rarely. These are the shapes measured
@@ -72,7 +82,19 @@ class Observed:
 
 
 def observe(address: str, timeout: float = 20.0) -> Observed:
-    """Ask TronGrid what this address actually does."""
+    """Ask TronGrid what this address actually does, respecting its rate limit."""
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        seen = _observe_once(address, timeout)
+        if seen.reachable or "429" not in seen.note:
+            return seen
+        if attempt < MAX_ATTEMPTS:
+            wait = RETRY_BACKOFF_SECONDS * attempt
+            print(f"  rate limited on {address}; waiting {wait:.0f}s", file=sys.stderr)
+            time.sleep(wait)
+    return seen
+
+
+def _observe_once(address: str, timeout: float) -> Observed:
     url = TRONGRID.format(address=address)
     # The URL is built from a constant and a base58check-validated address, so the scheme
     # cannot be anything but https — but assert it rather than rely on that reasoning.
@@ -116,6 +138,7 @@ def curate(entity: str, source_url: str, addresses: list[str]) -> tuple[list[dic
             continue
 
         seen = observe(validated.canonical)
+        time.sleep(REQUEST_SPACING_SECONDS)
         labels.append(
             {
                 "chain": str(ChainCode.TRON),

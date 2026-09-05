@@ -1,0 +1,165 @@
+{
+  "source": {
+    "name": "Binance published wallet disclosure",
+    "url": "https://www.binance.com/en/proof-of-reserves",
+    "licence": "First-party publication by the exchange. Addresses published by their own operator about their own wallets; no third-party compilation is involved.",
+    "reliability": "HIGH",
+    "dataset_date": "2026-09-05",
+    "description": "Wallet addresses Binance publishes about itself, transcribed from the disclosure at https://www.binance.com/en/proof-of-reserves, each validated with base58check and its role assigned from behaviour observed directly on TronGrid."
+  },
+  "labels": [
+    {
+      "chain": "TRON",
+      "address": "TAzsQ9Gx8eqFNFSKbeXrbi45CuVPHzA8wr",
+      "display": "TAzsQ9Gx8eqFNFSKbeXrbi45CuVPHzA8wr",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TCEn8ogRSiqdqv26UhsJmQQemrgJS56ZBD",
+      "display": "TCEn8ogRSiqdqv26UhsJmQQemrgJS56ZBD",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TCLgK89AnXbC9rewvhNb9UgXCc2qJJpBXh",
+      "display": "TCLgK89AnXbC9rewvhNb9UgXCc2qJJpBXh",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TDqSquXBgUCLYvYC4XZgrprLK589dkhSCf",
+      "display": "TDqSquXBgUCLYvYC4XZgrprLK589dkhSCf",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TJ5usJLLwjwn7Pw3TPbdzreG7dvgKzfQ5y",
+      "display": "TJ5usJLLwjwn7Pw3TPbdzreG7dvgKzfQ5y",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TJCo98saj6WND61g1uuKwJ9GMWMT9WkJFo",
+      "display": "TJCo98saj6WND61g1uuKwJ9GMWMT9WkJFo",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TJDENsfBJs4RFETt1X1W8wMDc8M5XnJhCe",
+      "display": "TJDENsfBJs4RFETt1X1W8wMDc8M5XnJhCe",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TJqwA7SoZnERE4zW5uDEiPkbz4B66h9TFj",
+      "display": "TJqwA7SoZnERE4zW5uDEiPkbz4B66h9TFj",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TK4ykR48cQQoyFcZ5N4xZCbsBaHcg6n3gJ",
+      "display": "TK4ykR48cQQoyFcZ5N4xZCbsBaHcg6n3gJ",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TMuA6YqfCeX8EhbfYEg5y7S4DqzSJireY9",
+      "display": "TMuA6YqfCeX8EhbfYEg5y7S4DqzSJireY9",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TMwf7KT8CCdUKuZfKNPTTjbYkFb3eGRbzY",
+      "display": "TMwf7KT8CCdUKuZfKNPTTjbYkFb3eGRbzY",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TNXoiAJ3dct8Fjg4M9fkLFh9S2v9TXc32G",
+      "display": "TNXoiAJ3dct8Fjg4M9fkLFh9S2v9TXc32G",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TPtW5TEHhouj6KGshVu5ZQSKZA48QPBnXG",
+      "display": "TPtW5TEHhouj6KGshVu5ZQSKZA48QPBnXG",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TQrY8tryqsYVCYS3MFbtffiPp2ccyn4STm",
+      "display": "TQrY8tryqsYVCYS3MFbtffiPp2ccyn4STm",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TRGCqsUXeynKTgynp2j9g3sg7Nux2KtB3u",
+      "display": "TRGCqsUXeynKTgynp2j9g3sg7Nux2KtB3u",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TWd4WrZ9wn84f5x1hZhL4DHvk738ns5jwb",
+      "display": "TWd4WrZ9wn84f5x1hZhL4DHvk738ns5jwb",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance cold wallet",
+      "label_type": "EXCHANGE"
+    },
+    {
+      "chain": "TRON",
+      "address": "TYASr5UV6HEcXatwdFQfmLVUqQQQMUxHLS",
+      "display": "TYASr5UV6HEcXatwdFQfmLVUqQQQMUxHLS",
+      "entity": "Binance",
+      "entity_type": "EXCHANGE",
+      "label_text": "Binance collection wallet",
+      "label_type": "EXCHANGE"
+    }
+  ]
+}

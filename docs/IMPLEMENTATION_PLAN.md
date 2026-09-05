@@ -22,7 +22,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 4 | Transaction normalization | ☑ | 3 |
 | 5 | Wallet tracing | ☑ | 4 |
 | 6 | Graph analytics & pattern detection | ☑ | 5 |
-| 7 | VASP attribution | ◐ | 4 (5 for full value) |
+| 7 | VASP attribution | ☑ | 4 (5 for full value) |
 | 8 | Risk engine | ☑ | 6, 7 |
 | 9 | AI / ML | ☐ | 7 |
 | 10 | Frontend dashboard | ◐ | 2 (mocks), 6/7/8 (real data) |
@@ -409,7 +409,7 @@ came from.
 
 ---
 
-## Phase 7 — VASP attribution ◐
+## Phase 7 — VASP attribution ☑
 **Depends on:** 4 · **Enables:** 8, 9 · **Runs in parallel with:** 5, 6
 
 **Goal.** Answer PS26183, with the three-tier discipline intact.
@@ -474,20 +474,45 @@ Built and confirmed directly:
   `CONFIRMED` service stops a trace**, so a sanctioned personal wallet is a finding rather than a
   boundary.
 
-**Outstanding — this phase is not done.**
-1. **The exchange label set does not exist yet.** Without it every `CONFIRMED` is a sanctions
+**Completed 2026-09-05.** The two items that had blocked it since the engine was built are
+both closed, and neither was closed the way it was expected to be.
+
+**The exchange label set exists** — `data/labels/exchange_binance.json`, 17 Binance TRON wallets
+(one cold, sixteen collection), each base58check-validated and its role assigned from behaviour
+observed on TronGrid rather than copied from the source. Provenance is **Binance's own
+proof-of-reserves disclosure**: first-party, tied to a published Merkle root and audit
+timestamp. Three further addresses in the file are held by Ceffu, a third-party custodian, and
+were excluded — they are Binance's reserves but not Binance's wallets, and labelling them
+"Binance" would be a slightly false claim.
+
+**ADR-018 was closed unadopted rather than signed.** Reading TronScan's terms of service ruled
+it out as a source entirely (§6.1 and §8 — proprietary data, internal use only, no distribution
+or derivative use), which removed one of the three corroboration sources the ADR's plan assumed
+and meant signing it could not have produced a `CONFIRMED` label anyway. First-party disclosure
+turned out to be *stronger* provenance than the corroboration the ADR was written to justify,
+and needs no legal judgement at all. The Dune lead list is not used.
+
+**The precision gate is met and measured** — 0.989 at the 0.7 threshold across 531 Ethereum
+addresses, against Binance's own published deposit addresses as ground truth and its own hot and
+cold wallets as hard negatives. **Recall is 0.186**, which matters more for how the system is
+described: four in five real deposit addresses have too little history to classify, exactly the
+gap VASP_IDENTIFICATION.md §4 named first among its false negatives. No weight was changed to
+reach the number. Method, the single false positive, and the limits of the measurement:
+[research/OQ-09-deposit-heuristic-precision.md](research/OQ-09-deposit-heuristic-precision.md).
+
+**Still outstanding, and none of it blocks the demo.**
+1. ~~**The exchange label set does not exist yet.**~~ Without it every `CONFIRMED` is a sanctions
    hit, and the chained inference has nothing to sweep *to*: a deposit address resolves to "a
    deposit address for an unidentified service". This is the single highest-leverage hour of work
    in the project ([MVP_SCOPE.md §6](MVP_SCOPE.md)) and the engine is ready to receive it.
-   It is gated on two things named in
-   [research/OQ-08-tron-label-coverage.md §6](research/OQ-08-tron-label-coverage.md): **an ADR
-   with a named signer** resolving OQ-07's facts-versus-compilation judgement, and **reading
-   TronScan's terms of service in a browser**.
+   **Done 2026-09-05** — see above. Coverage is one exchange, not the 50–100 addresses across
+   many exchanges the plan hoped for, because only Binance publishes TRON wallet addresses among
+   those checked. More exchanges can be added the same way with
+   `scripts/curate_exchange_labels.py` whenever their disclosures are to hand.
 2. **Contract classification (§7 step 2) is not implemented.** A contract is currently
    `UNATTRIBUTED` with reason `UNIDENTIFIED_CONTRACT` rather than typed, and `is_contract` is
    never populated — no caller passes it.
-3. **The precision ≥ 0.95 gate is unmeasured.** It needs the labelled hold-out set, which needs
-   item 1. The thresholds are OQ-09's reasoned defaults, not calibrated ones.
+3. ~~**The precision ≥ 0.95 gate is unmeasured.**~~ **Measured 2026-09-05: 0.989.** See above.
 4. **Investigator override (`SHOULD`)** — the table exists, no endpoint does.
 5. ~~Attribution is not called by the pipeline.~~ **Done 2026-09-05** — the pipeline runs
    RETRIEVAL → NORMALIZATION → TRACING → GRAPH → PATTERNS → ATTRIBUTION, and

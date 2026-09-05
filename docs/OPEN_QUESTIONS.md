@@ -174,7 +174,14 @@ rate limit then costs the entire trace).
 **Resolve by:** an ADR, before the TRACING stage is wired into `worker.py`. This blocks the
 pipeline, not the engines — every stage it would call is built and tested.
 
-### OQ-09 · Deposit-heuristic thresholds
+### OQ-09 · Deposit-heuristic thresholds — **ANSWERED**
+**Measured 2026-09-05** against Binance's own published deposit addresses:
+**precision 0.989 at the 0.7 threshold on 531 Ethereum addresses — the ≥ 0.95 gate is met**,
+with **recall 0.186**. No weight was changed as a result; 0.70 was reasoned before the data
+existed and lands in a genuine gap in the score distribution. Full method, the single false
+positive, and what the measurement cannot tell us:
+[research/OQ-09-deposit-heuristic-precision.md](research/OQ-09-deposit-heuristic-precision.md).
+Original framing follows.
 `sweep_consistency > 0.95`, `dwell < 1 h`, `balance_retention ≈ 0`, decision cut-offs at 0.7 and
 0.4. All reasoned, none calibrated.
 **Resolve by:** measuring against known deposit addresses and known look-alikes once the label

@@ -198,6 +198,24 @@ funnels has learned the generator.
 
 ---
 
+**The deposit-address heuristic finds roughly one in five real deposit addresses.** Measured
+2026-09-05 against Binance's own published deposit addresses: precision 0.989, **recall 0.186**
+(`docs/research/OQ-09-deposit-heuristic-precision.md`). Four out of five published deposit
+addresses had too little transaction history to classify — most had received once and forwarded
+once — and the system correctly reports those as `UNATTRIBUTED` with reason
+`INSUFFICIENT_ACTIVITY`.
+
+This is the deliberate trade: a missed attribution costs an investigator time, a wrong one sends
+a legal request to the wrong institution. **The precision figure must never be quoted without
+the recall beside it**, because on its own it implies a coverage the system does not have. A
+scammer's brand-new deposit address is very often exactly the case this misses.
+
+The one false positive in that measurement was a Binance *collection* wallet — behaviourally
+identical to a deposit address by construction, and an investigator told "probably a deposit
+address for Binance" would not have been misled by it.
+
+---
+
 ## 8. LLM narrative
 
 Prose only, from structured findings, with placeholder validation and regex rejection of any
