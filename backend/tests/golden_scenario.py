@@ -20,6 +20,7 @@ The shape it encodes is the one the product exists for:
                                └── 5% dust, below the taint threshold, pruned
 """
 
+import gzip
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -132,19 +133,22 @@ def write_fixtures(root: Path) -> None:
         ):
             params = {"limit": 200, "order_by": "block_timestamp,desc"}
             key = fixture_key("trongrid", endpoint, params)
-            path = root / "trongrid" / f"{key.split(':', 1)[1]}.json"
+            path = root / "trongrid" / f"{key.split(':', 1)[1]}.json.gz"
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(
-                json.dumps(
-                    {
-                        "provider": "trongrid",
-                        "endpoint": endpoint,
-                        "params": params,
-                        "status": 200,
-                        "captured_at": BASE.isoformat(),
-                        "body": body,
-                    },
-                    indent=2,
-                    sort_keys=True,
+            # Fixtures are stored gzipped; see app/ingestion/fixtures.py.
+            path.write_bytes(
+                gzip.compress(
+                    json.dumps(
+                        {
+                            "provider": "trongrid",
+                            "endpoint": endpoint,
+                            "params": params,
+                            "status": 200,
+                            "captured_at": BASE.isoformat(),
+                            "body": body,
+                        },
+                        indent=2,
+                        sort_keys=True,
+                    ).encode()
                 )
             )

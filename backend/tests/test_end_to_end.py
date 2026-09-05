@@ -124,6 +124,7 @@ def _addresses(flows: list[dict[str, Any]]) -> list[str]:
 
 
 def _write(root: Path, flows: list[dict[str, Any]], addresses: list[str]) -> None:
+    import gzip
     import json
 
     from app.ingestion.fixtures import fixture_key
@@ -136,18 +137,21 @@ def _write(root: Path, flows: list[dict[str, Any]], addresses: list[str]) -> Non
         ):
             params = {"limit": 200, "order_by": "block_timestamp,desc"}
             key = fixture_key("trongrid", endpoint, params)
-            path = root / "trongrid" / f"{key.split(':', 1)[1]}.json"
+            path = root / "trongrid" / f"{key.split(':', 1)[1]}.json.gz"
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(
-                json.dumps(
-                    {
-                        "provider": "trongrid",
-                        "endpoint": endpoint,
-                        "params": params,
-                        "status": 200,
-                        "captured_at": scenario.BASE.isoformat(),
-                        "body": body,
-                    }
+            # Fixtures are stored gzipped; see app/ingestion/fixtures.py.
+            path.write_bytes(
+                gzip.compress(
+                    json.dumps(
+                        {
+                            "provider": "trongrid",
+                            "endpoint": endpoint,
+                            "params": params,
+                            "status": 200,
+                            "captured_at": scenario.BASE.isoformat(),
+                            "body": body,
+                        }
+                    ).encode()
                 )
             )
 

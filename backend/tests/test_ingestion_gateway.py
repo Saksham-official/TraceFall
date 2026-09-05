@@ -88,9 +88,9 @@ def test_fixture_root_is_anchored_to_the_backend_package() -> None:
 
 
 def test_committed_fixtures_exist_and_are_real_provider_responses() -> None:
-    captured = list(fixtures.fixture_root().rglob("*.json"))
+    captured = list(fixtures.fixture_root().rglob("*.json.gz"))
     assert captured, "no fixtures committed — the offline demo path would not work"
-    response = fixtures.load("trongrid", f"trongrid:{captured[0].stem}")
+    response = fixtures.load("trongrid", f"trongrid:{captured[0].name.removesuffix('.json.gz')}")
     assert response.is_fixture is True
     assert response.status == 200
     assert isinstance(response.json(), dict)
