@@ -29,6 +29,7 @@ import { RiskBadge } from '../components/RiskBadge'
 import { Tabs } from '../components/Tabs'
 import { TierBadge, tierLabel } from '../components/TierBadge'
 import { Banner, Button, Card, EmptyState, ErrorNotice, Spinner } from '../components/ui'
+import { download } from '../api/client'
 import { truncateAddress } from '../lib/format'
 
 const MAX_NODES = 500
@@ -435,9 +436,19 @@ function EvidencePanel({
           <ul className="mt-3 space-y-1 text-sm">
             {reports.data.map((report) => (
               <li key={report.id} className="flex flex-wrap items-center gap-2">
-                <a className="underline" href={`/api/v1${report.download_url.replace('/api/v1', '')}`}>
+                <button
+                  type="button"
+                  className="underline"
+                  data-download-url={report.download_url}
+                  onClick={() =>
+                    void download(
+                      report.download_url.replace('/api/v1', ''),
+                      `tracefall-${report.id}.${report.format.toLowerCase()}`,
+                    )
+                  }
+                >
                   {report.format} · {new Date(report.generated_at).toLocaleString()}
-                </a>
+                </button>
                 <span className="font-mono text-xs text-[var(--muted)]">
                   sha256 {report.content_sha256.slice(0, 16)}…
                 </span>

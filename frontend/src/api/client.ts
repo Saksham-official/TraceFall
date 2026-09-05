@@ -160,6 +160,36 @@ export async function restoreSession(): Promise<TokenResponse['user'] | null> {
   return tokens.user
 }
 
+/**
+ * Download a file the API protects with a bearer token.
+ *
+ * A plain `<a href>` cannot do this: a browser navigating to a link sends cookies, not an
+ * Authorization header, and the refresh cookie is scoped to the auth routes — so the link
+ * returned 401 and the user got an error page instead of their report. Fetching with the
+ * header and handing the browser a blob is the way a token-authenticated SPA downloads.
+ */
+export async function download(path: string, filename: string): Promise<void> {
+  let response = await send(path, {})
+  if (response.status === 401 && (await refreshSession())) {
+    response = await send(path, {})
+  }
+  if (!response.ok) throw toApiError(response.status, await parse(response))
+
+  const blob = await response.blob()
+  const url = URL.createObjectURL(blob)
+  try {
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = filename
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+  } finally {
+    // Revoking immediately can cancel the download in some browsers; a tick is enough.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  }
+}
+
 export function query(params: Record<string, string | number | undefined | null>): string {
   const search = new URLSearchParams()
   for (const [key, value] of Object.entries(params)) {
