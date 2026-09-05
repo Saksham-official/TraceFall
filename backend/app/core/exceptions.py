@@ -82,6 +82,12 @@ class ProviderUnavailable(TraceFallError):
     message = "A required upstream service is unavailable"
 
 
+class RateLimited(TraceFallError):
+    code = "RATE_LIMITED"
+    status_code = 429
+    message = "Too many requests"
+
+
 class StorageUnavailable(TraceFallError):
     """Local storage could not be written. The message names the setting to fix."""
 

@@ -10,7 +10,9 @@ from app.api.middleware import AuditMiddleware, RequestContextMiddleware
 from app.api.v1 import router as v1_router
 from app.core.config import get_settings
 from app.core.exceptions import TraceFallError, ValidationFailed
+from app.core.headers import SecurityHeadersMiddleware
 from app.core.logging import configure_logging
+from app.core.ratelimit import RateLimitMiddleware
 
 configure_logging()
 log = logging.getLogger(__name__)
@@ -24,9 +26,14 @@ app = FastAPI(
     redoc_url=None,
 )
 
-# Order matters: correlation id is set first so audit rows and logs carry it.
+# Middleware runs in reverse registration order, so this list reads bottom-up: security
+# headers wrap everything (a rate-limit rejection needs them too), then the correlation id
+# is set before anything that logs, then the rate limiter rejects before the request
+# reaches a handler, and auditing sits closest to the route.
 app.add_middleware(AuditMiddleware)
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(RequestContextMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,

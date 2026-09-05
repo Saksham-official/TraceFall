@@ -7,8 +7,20 @@ so .env.example can stay ahead of the code as later phases land.
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Values that have appeared in example files and tutorials. Not an exhaustive list — the
+# variety check below catches the rest of the obvious ones.
+_WEAK_SECRETS = frozenset(
+    {
+        "change-me",
+        "changeme",
+        "secret",
+        "development",
+        "test-secret-key-not-used-outside-tests-0123456789",
+    }
+)
 
 
 class Settings(BaseSettings):
@@ -72,9 +84,51 @@ class Settings(BaseSettings):
     # Repository-relative by default so a fresh clone works with no setup — the same
     # reason LIVE_MODE is false. The container overrides both to /data/... where a
     # volume is mounted; see .env.example and docker-compose.yml.
+    # Inbound request limiting. Off in tests, which would otherwise exhaust a shared
+    # bucket and fail unrelated suites.
+    rate_limit_enabled: bool = True
+    # Only enable behind a load balancer that overwrites X-Forwarded-For. In front of
+    # one, an attacker sets the header themselves and gets a fresh rate-limit bucket per
+    # request.
+    trust_proxy_headers: bool = False
+
     evidence_storage_path: str = "var/evidence"
     report_storage_path: str = "var/reports"
     fixture_path: str = "tests/fixtures/chain_data"
+
+    @model_validator(mode="after")
+    def _production_is_hardened(self) -> "Settings":
+        """Refuse to start a production instance on a development configuration.
+
+        Each of these is a mistake that is invisible until it is exploited, and each is
+        made by deploying with a `.env` that was fine on a laptop. Failing at boot is the
+        only failure mode that gets noticed.
+        """
+        if self.environment != "production":
+            return self
+
+        problems = []
+        if self.secret_key in _WEAK_SECRETS or self.secret_key.startswith("change"):
+            problems.append("SECRET_KEY is a placeholder value")
+        if len(set(self.secret_key)) < 8:
+            problems.append("SECRET_KEY has too little variety to be randomly generated")
+        insecure = [o for o in self.cors_origin_list if o.startswith("http://")]
+        if insecure:
+            problems.append(f"CORS_ORIGINS contains plain-HTTP origins: {', '.join(insecure)}")
+        if "*" in self.cors_origin_list:
+            # With allow_credentials, a wildcard origin would hand any site the session.
+            problems.append("CORS_ORIGINS contains a wildcard")
+        if not self.rate_limit_enabled:
+            problems.append("RATE_LIMIT_ENABLED is false")
+        if "localhost" in self.database_url or "localhost" in self.redis_url:
+            problems.append("DATABASE_URL or REDIS_URL still points at localhost")
+
+        if problems:
+            raise ValueError(
+                "Refusing to start in production with an unsafe configuration: "
+                + "; ".join(problems)
+            )
+        return self
 
     @property
     def cors_origin_list(self) -> list[str]:

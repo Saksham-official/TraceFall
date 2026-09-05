@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import Forbidden, NotFound, Unauthenticated
+from app.core.ratelimit import enforce_user_limit
 from app.core.security import decode_token
 from app.db.models.case import Case, CaseAssignment
 from app.db.models.enums import UserRole
@@ -45,6 +46,9 @@ async def get_current_user(
     user = await session.get(User, int(payload["sub"]))
     if user is None or not user.is_active:
         raise Unauthenticated("Account is inactive or no longer exists")
+    # The per-user budget is applied here rather than in middleware, which runs before
+    # the token has been decoded and so cannot know who is calling.
+    await enforce_user_limit(user.id)
     return user
 
 
