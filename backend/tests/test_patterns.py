@@ -363,6 +363,39 @@ async def test_findings_are_stored_with_their_note_and_triggers(session: AsyncSe
         assert row.detector_version
 
 
+async def test_a_finding_involving_tens_of_thousands_of_addresses_is_stored(
+    session: AsyncSession,
+) -> None:
+    """Regression: PostgreSQL caps a statement at 32,767 bind parameters.
+
+    A fan-in finding on a service address involves every counterparty it saw. On the demo
+    trace that is twenty thousand of them, and the single-statement upsert sent two
+    parameters each — so the pattern stage raised `InterfaceError` and the whole run
+    degraded to PARTIAL with no findings at all, on exactly the traces that matter most.
+    """
+    run_id, root = await pattern_scaffold(session)
+    involved = [tron.from_hex("41" + f"{0x50000 + i:040x}") for i in range(20_000)]
+    result = StageResult(
+        findings=[
+            Finding(
+                pattern_type=PatternType.FAN_IN,
+                severity=Severity.MEDIUM,
+                subject_address=root,
+                explanation="Twenty thousand senders funded this address.",
+                trigger_tx_hashes=["0x" + "a" * 64],
+                metrics={"senders": len(involved)},
+                false_positive_note="A service address collects from many senders by design.",
+                detector_version="test",
+                involved_addresses=involved,
+            )
+        ]
+    )
+
+    assert await persistence.save(session, run_id, ChainCode.TRON, result) == 1
+    stored = (await session.scalars(select(PatternFinding))).one()
+    assert len(stored.involved_address_ids) == len(involved)
+
+
 async def test_a_run_with_no_findings_writes_nothing(session: AsyncSession) -> None:
     run_id, root = await pattern_scaffold(session)
     quiet = StageResult()

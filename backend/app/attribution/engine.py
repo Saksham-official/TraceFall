@@ -19,11 +19,11 @@ from collections.abc import Sequence
 from fractions import Fraction
 
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.attribution.decision import ENGINE_VERSION, AttributionResult, decide
-from app.db.models.blockchain import Address, Chain
+from app.db import addresses as addresses_repo
+from app.db.models.blockchain import Address
 from app.db.models.entity import Attribution, Entity
 from app.db.models.enums import AttributionTier, ChainCode
 from app.intel import service as intel
@@ -94,7 +94,7 @@ async def persist(
     if not results:
         return 0
 
-    address_ids = await _address_ids(session, chain, set(results))
+    address_ids = await addresses_repo.ids_for(session, chain, set(results))
     rows = []
     for address, result in results.items():
         evidence = list(result.evidence)
@@ -124,32 +124,6 @@ async def persist(
         "attributed %d addresses on %s: %s", len(rows), chain, {str(k): v for k, v in tiers.items()}
     )
     return len(rows)
-
-
-async def _address_ids(
-    session: AsyncSession, chain: ChainCode, addresses: set[str]
-) -> dict[str, int]:
-    """Ids for every address, creating any the analysis has not stored yet.
-
-    An address can be attributed without ever having appeared in a stored transfer — an
-    unattributed one, most obviously. Dropping its finding for want of a row would lose
-    exactly the honest "we do not know" answer the tiers exist to make sayable.
-    """
-    chain_id = await session.scalar(select(Chain.id).where(Chain.code == chain))
-    assert chain_id is not None
-    await session.execute(
-        insert(Address)
-        .values([{"chain_id": chain_id, "address": address} for address in sorted(addresses)])
-        .on_conflict_do_nothing(constraint="chain_id_address")
-    )
-    return {
-        address: row_id
-        for address, row_id in await session.execute(
-            select(Address.address, Address.id).where(
-                Address.chain_id == chain_id, Address.address.in_(addresses)
-            )
-        )
-    }
 
 
 async def load(session: AsyncSession, analysis_run_id: uuid.UUID) -> dict[str, AttributionResult]:

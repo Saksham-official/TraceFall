@@ -9,9 +9,9 @@ import logging
 import uuid
 
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import addresses as addresses_repo
 from app.db.models.blockchain import Address, Chain
 from app.db.models.enums import ChainCode
 from app.db.models.finding import PatternFinding
@@ -30,7 +30,7 @@ async def save(
     addresses = {finding.subject_address for finding in result.findings}
     for finding in result.findings:
         addresses.update(finding.involved_addresses)
-    ids = await _address_ids(session, chain, addresses)
+    ids = await addresses_repo.ids_for(session, chain, addresses)
 
     rows = [
         PatternFinding(
@@ -81,23 +81,3 @@ async def load(
         )
         for row, address in rows
     ]
-
-
-async def _address_ids(
-    session: AsyncSession, chain: ChainCode, addresses: set[str]
-) -> dict[str, int]:
-    chain_id = await session.scalar(select(Chain.id).where(Chain.code == chain))
-    assert chain_id is not None
-    await session.execute(
-        insert(Address)
-        .values([{"chain_id": chain_id, "address": address} for address in sorted(addresses)])
-        .on_conflict_do_nothing(constraint="chain_id_address")
-    )
-    return {
-        address: row_id
-        for address, row_id in await session.execute(
-            select(Address.address, Address.id).where(
-                Address.chain_id == chain_id, Address.address.in_(addresses)
-            )
-        )
-    }

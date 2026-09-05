@@ -7,13 +7,13 @@ in `intel/service.py`, which every consumer shares rather than each keeping its 
 
 import logging
 import uuid
-from collections.abc import Sequence
 from decimal import Decimal
 from fractions import Fraction
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import addresses as addresses_repo
 from app.db.models.analysis import AnalysisRun, Trace, TraceEdge, TraceNode
 from app.db.models.blockchain import Address, Asset, Chain
 from app.db.models.enums import ChainCode, TaintModel
@@ -127,31 +127,6 @@ async def load(session: AsyncSession, analysis_run_id: uuid.UUID) -> TraceResult
     return result
 
 
-async def _address_ids(
-    session: AsyncSession, chain_id: int, addresses: Sequence[str]
-) -> dict[str, int]:
-    """Upsert every address the trace touched, so edges have something to point at."""
-    existing = await session.execute(
-        select(Address.address, Address.id).where(
-            Address.chain_id == chain_id, Address.address.in_(addresses)
-        )
-    )
-    ids: dict[str, int] = {name: row_id for name, row_id in existing.all()}
-    missing = [a for a in addresses if a not in ids]
-    for address in missing:
-        row = Address(chain_id=chain_id, address=address)
-        session.add(row)
-    if missing:
-        await session.flush()
-        refreshed = await session.execute(
-            select(Address.address, Address.id).where(
-                Address.chain_id == chain_id, Address.address.in_(missing)
-            )
-        )
-        ids.update({name: row_id for name, row_id in refreshed.all()})
-    return ids
-
-
 async def save(
     session: AsyncSession, run: AnalysisRun, result: TraceResult, chain: ChainCode
 ) -> Trace:
@@ -160,7 +135,7 @@ async def save(
     if chain_row is None:
         raise RuntimeError(f"chain {chain} is not configured")
 
-    ids = await _address_ids(session, chain_row.id, list(result.nodes))
+    ids = await addresses_repo.ids_for(session, chain_row.id, result.nodes)
     asset_rows = await session.execute(select(Asset.contract_address, Asset.id))
     asset_ids: dict[str | None, int] = {c: i for c, i in asset_rows.all()}
 

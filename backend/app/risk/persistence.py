@@ -9,10 +9,10 @@ import logging
 import uuid
 
 from sqlalchemy import select
-from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.blockchain import Address, Chain
+from app.db import addresses as addresses_repo
+from app.db.models.blockchain import Address
 from app.db.models.entity import Attribution
 from app.db.models.enums import (
     AlertType,
@@ -41,7 +41,7 @@ async def save(
     if not assessments:
         return 0
 
-    ids = await _address_ids(session, chain, set(assessments))
+    ids = await addresses_repo.ids_for(session, chain, set(assessments))
     rows = [
         RiskAssessment(
             analysis_run_id=analysis_run_id,
@@ -142,23 +142,3 @@ async def _alerts(
         ]
     )
     return len(raised)
-
-
-async def _address_ids(
-    session: AsyncSession, chain: ChainCode, addresses: set[str]
-) -> dict[str, int]:
-    chain_id = await session.scalar(select(Chain.id).where(Chain.code == chain))
-    assert chain_id is not None
-    await session.execute(
-        insert(Address)
-        .values([{"chain_id": chain_id, "address": address} for address in sorted(addresses)])
-        .on_conflict_do_nothing(constraint="chain_id_address")
-    )
-    return {
-        address: row_id
-        for address, row_id in await session.execute(
-            select(Address.address, Address.id).where(
-                Address.chain_id == chain_id, Address.address.in_(addresses)
-            )
-        )
-    }
