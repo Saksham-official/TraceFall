@@ -9,7 +9,10 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      # 127.0.0.1, not localhost: /etc/hosts resolves localhost to ::1 first and nginx
+      # listens on IPv4 only, so the name form is refused and the service never turns
+      # healthy — which then blocks anything depending on it.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -43,6 +46,10 @@ services:
       dockerfile: backend/Dockerfile
     command: ["python", "-m", "app.worker"]
     env_file: .env
+    # The schema is created by `alembic upgrade head` after the stack is up, so on a
+    # first deployment the worker starts before the tables exist. It waits for them
+    # rather than exiting, and this policy covers the rest.
+    restart: unless-stopped
     volumes:
       - evidence_data:/data/evidence
       - report_data:/data/reports
