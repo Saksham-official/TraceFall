@@ -39,3 +39,7 @@ var/
 
 # Browser-automation scratch output.
 .playwright-mcp/
+
+# Playwright output.
+frontend/test-results/
+frontend/playwright-report/

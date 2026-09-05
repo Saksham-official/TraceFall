@@ -11,5 +11,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],
     globals: true,
+    // e2e/ belongs to Playwright and needs a running stack. Vitest picking it up gives a
+    // confusing "did not expect test.describe() to be called here" instead of a skip.
+    exclude: ['node_modules/**', 'e2e/**', 'dist/**'],
   },
 })
