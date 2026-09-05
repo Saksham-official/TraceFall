@@ -21,7 +21,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 3 | Blockchain ingestion | ☑ | 2 |
 | 4 | Transaction normalization | ☑ | 3 |
 | 5 | Wallet tracing | ☑ | 4 |
-| 6 | Graph analytics & pattern detection | ☐ | 5 |
+| 6 | Graph analytics & pattern detection | ◐ | 5 |
 | 7 | VASP attribution | ◐ | 4 (5 for full value) |
 | 8 | Risk engine | ☐ | 6, 7 |
 | 9 | AI / ML | ☐ | 7 |
@@ -312,7 +312,7 @@ ranking · persistence to `traces` / `trace_nodes` / `trace_edges`.
 
 ---
 
-## Phase 6 — Graph analytics & pattern detection ☐
+## Phase 6 — Graph analytics & pattern detection ◐
 **Depends on:** 5 · **Enables:** 8, 10
 
 **Goal.** Turn traces into the object investigators reason with, and name the behaviours in it.
@@ -358,6 +358,49 @@ paired negative fixture** ([TESTING_STRATEGY.md §6](TESTING_STRATEGY.md)).
 false-positive** test per detector.
 **DoD.** Graph API returns render-ready data within budget; pattern findings are explainable
 and honest about their limits.
+
+**Engines built 2026-09-05.** 337 tests pass; ruff, `ruff format --check` and mypy `strict`
+clean across 80 source files. 44 new tests in `test_graph.py` and `test_patterns.py`.
+
+Built and confirmed directly:
+- `graph/{builder,algorithms,serialize}.py` over NetworkX. A `DiGraph`, not a `MultiDiGraph`,
+  because a trace follows one asset (ADR-017) — at most one aggregated edge per address pair.
+  Every edge keeps its `tx_hashes`, so no finding is more than a click from raw evidence, and
+  pruned branches are recorded on the node they left rather than vanishing.
+- Highest-value path as the negative-log-weight shortest path, **ending at a terminal** — every
+  prefix of a path retains at least as much as the path, so an unconstrained endpoint would
+  always pick the first hop. Verified against a hand-computed 90/10 split.
+- Betweenness over the tainted subgraph identifies the chokepoint in a four-branch fixture;
+  weakly connected components; bounded cycle detection; degrees. An edge that carried no
+  tainted value is excluded from every path and lends no centrality.
+- The render cap keeps the root, every terminal and every **confirmed** service
+  unconditionally, returns exactly `max_nodes` when it can, sets `truncated`, and records
+  `omitted_successors` per node for the "+N more" affordance. When the mandatory set alone
+  exceeds the cap it returns all of it — an over-large graph beats one missing its answer.
+  Raw amounts serialise as strings; a JSON number cannot hold an 18-decimal amount exactly.
+- `patterns/{base,detectors,persistence}.py`. **A detector with an empty
+  `false_positive_note` raises at registration**, so FR-66 is enforced by the registry rather
+  than by review — and again by the NOT NULL column. All six detectors ship (FAN_OUT, FAN_IN,
+  RAPID_TRANSFER, PEEL_CHAIN, DORMANCY_BURST, STRUCTURING), each with a positive fixture **and
+  a paired negative one**, plus a test that an ordinary two-hop trace stays silent. A detector
+  that raises is recorded as unavailable and the other five still run.
+
+**Cleanup.** `tracing/persistence.load_transfers` was a second copy of the canonical-layer
+reader that scanned every transfer on the chain per call. Removed; `intel/service.py`'s indexed
+batch loader is now the only one.
+
+**Outstanding — this phase is not done.**
+1. **No `api/v1/{graph,patterns}.py`.** Deliberately not built yet: the endpoints would have no
+   data to serve until the pipeline runs a trace (item 2), and scaffolding an endpoint over
+   nothing is not worth the file.
+2. **The pipeline still stops after NORMALIZATION**, and wiring TRACING onward needs a decision
+   first. Retrieval fetches only the root address, so a multi-hop trace has to fetch each
+   address it discovers — and when that fetch fails (a missing fixture, a provider outage), the
+   node currently terminates as `NO_OUTFLOW`, which asserts something false: "nothing left this
+   address" rather than "we could not look". There is no `TerminationReason` for the honest
+   answer and all migrations are front-loaded (Phase 2), so **this needs an ADR before code.**
+3. Louvain community detection (`NICE TO HAVE`, GRAPH_ANALYTICS.md §3) is not built.
+4. Risk scoring does not yet populate `risk_score` / `risk_band` on nodes — that is Phase 8.
 
 ---
 

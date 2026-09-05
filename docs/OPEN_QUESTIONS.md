@@ -146,6 +146,22 @@ consistent sweep patterns, publicly discussed. Fifty verified addresses would be
 revisiting ADR-001 and leading the demo with Ethereum instead. Better to discover it in week one
 than in week four.
 
+### OQ-18 · How does a trace report an address it could not fetch?
+**Raised 2026-09-05, while wiring Phase 6.** Retrieval fetches only the root address, so a
+multi-hop trace must fetch each address it discovers. When that fetch fails — a missing fixture,
+a provider outage, a rate limit — the tracing engine currently sees no outflow and terminates the
+node as `NO_OUTFLOW`.
+**Why it matters.** `NO_OUTFLOW` asserts "nothing left this address", which is a finding. "We
+could not look" is the opposite of a finding, and presenting one as the other is precisely the
+silent degradation principle 12 forbids. On a fixture demo this is the *common* case, not an
+edge case.
+**Options.** Add a `DATA_UNAVAILABLE` termination reason (needs a migration, and all migrations
+are front-loaded per Phase 2) · carry it as a per-node degradation flag alongside the existing
+reason · fail the whole run when any discovered address cannot be fetched (safe, but a single
+rate limit then costs the entire trace).
+**Resolve by:** an ADR, before the TRACING stage is wired into `worker.py`. This blocks the
+pipeline, not the engines — every stage it would call is built and tested.
+
 ### OQ-09 · Deposit-heuristic thresholds
 `sweep_consistency > 0.95`, `dwell < 1 h`, `balance_retention ≈ 0`, decision cut-offs at 0.7 and
 0.4. All reasoned, none calibrated.
