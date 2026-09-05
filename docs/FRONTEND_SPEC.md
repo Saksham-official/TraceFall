@@ -36,6 +36,10 @@ Cytoscape.js for the graph, Recharts for timelines.
 | `PROBABLE` | outlined badge, "Likely — 87%" | **dashed** | question-diamond |
 | `UNATTRIBUTED` | muted grey, "Unattributed" | none | dash |
 
+**Token display.** A token symbol is never shown alone. Symbols are not identities — real
+captured data contains a `USDTT` token beside genuine USDT — so every asset is rendered with
+its contract address available, and a token whose symbol resembles a well-known one is marked.
+
 **Typography.** System sans for UI; monospace for addresses and hashes, always with a
 one-click copy control. Addresses are truncated middle-out (`TXn8kL…gH5jK2m`) with the full
 value on hover and on copy.

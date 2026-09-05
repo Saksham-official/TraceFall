@@ -74,6 +74,17 @@ separate chain analysis is needed), depth limits, and value thresholds.
 splits into a hundred tiny amounts can push value below the threshold. We report what was
 pruned and how much, but we did not follow it.
 
+### Token symbols are not identities
+
+Anyone can deploy a contract calling itself USDT. Our own captured test data contains a
+**`USDTT`** token sitting in the same wallet as genuine USDT — routine address poisoning.
+
+Asset identity is always the **contract address**, never the symbol, and an amount that
+matches transfers of more than one contract is reported as ambiguous rather than resolved.
+The consequence for the interface is a rule, not a preference: **never display a token
+symbol without its contract**, or an investigator can be led to trace the wrong asset
+entirely.
+
 ### A swap ends the trace
 
 A trace follows one asset (ADR-017). If funds are converted — USDT to TRX, or into any other

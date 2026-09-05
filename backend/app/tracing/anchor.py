@@ -8,6 +8,11 @@ Tolerances are deliberately generous. Complainants misremember times, screenshot
 local timezones, and fees change amounts — a tight window loses real matches. Where
 several transfers fit, we return them all rather than guessing: silently anchoring to the
 wrong transaction corrupts the entire trace while looking perfectly fine.
+
+A token symbol is not an identity. Anyone can deploy a contract calling itself USDT, and
+scam wallets are routinely dusted with lookalikes. Matching on symbol alone would let a
+poisoned token capture the anchor, so an amount that matches across several contracts is
+reported as ambiguous rather than resolved.
 """
 
 from dataclasses import dataclass
@@ -54,6 +59,14 @@ def resolve(
         inbound = [t for t in inbound if (t.asset_symbol or "").upper() == asset_symbol.upper()]
 
     candidates = [t for t in inbound if _amount_matches(t, reported_amount)]
+
+    # Token symbols are not identities. Real captured data contains a "USDTT" token in the
+    # same wallet as genuine USDT, and nothing stops a scam token from claiming the symbol
+    # exactly. If the amount matches transfers of more than one contract, we must not pick
+    # one — anchoring to a poisoned lookalike would trace the wrong asset entirely.
+    contracts = {t.asset_contract for t in candidates}
+    if len(contracts) > 1:
+        return AnchorResult(None, candidates, "AMBIGUOUS_TOKEN_SYMBOL")
 
     if reported_at is not None:
         timed = [

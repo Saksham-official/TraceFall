@@ -103,3 +103,30 @@ def test_unknown_decimals_cannot_match_an_amount() -> None:
     transfers = [tx("VICTIM", "A", 40_000_000_000, 0, decimals=None)]
     result = resolve(transfers, "A", Decimal("40000"), BASE_TIME)
     assert not result.anchored
+
+
+def test_a_lookalike_token_cannot_capture_the_anchor() -> None:
+    """Real captured data contains a "USDTT" token beside genuine USDT. Nothing stops a
+    scam token from claiming the symbol exactly, so a symbol match across two contracts
+    must not be resolved silently."""
+    genuine = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+    lookalike = "TGXjZQCTdH6ioWL3acappQEzo6sEPhCsGy"
+    transfers = [
+        tx("VICTIM", "A", 40_000_000_000, 0, contract=genuine),
+        tx("POISONER", "A", 40_000_000_000, 5, contract=lookalike),
+    ]
+    for t in transfers:
+        object.__setattr__(t, "asset_symbol", "USDT")
+
+    result = resolve(transfers, "A", Decimal("40000"), BASE_TIME, asset_symbol="USDT")
+    assert not result.anchored
+    assert result.reason == "AMBIGUOUS_TOKEN_SYMBOL"
+    assert len(result.candidates) == 2
+
+
+def test_a_single_contract_still_anchors_when_a_symbol_is_given() -> None:
+    genuine = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+    transfers = [tx("VICTIM", "A", 40_000_000_000, 0, contract=genuine)]
+    object.__setattr__(transfers[0], "asset_symbol", "USDT")
+    result = resolve(transfers, "A", Decimal("40000"), BASE_TIME, asset_symbol="USDT")
+    assert result.anchored
