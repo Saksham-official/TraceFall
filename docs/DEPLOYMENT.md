@@ -91,7 +91,7 @@ cp .env.example .env
 ./scripts/generate-secret.sh >> .env      # writes SECRET_KEY
 docker compose up -d
 docker compose exec api alembic upgrade head
-docker compose exec api python -m app.cli load-labels   # Phase 7 onward
+docker compose exec api python -m app.cli load-labels
 docker compose exec api python -m app.cli create-admin   # interactive, prompts for password
 open http://localhost
 ```
@@ -123,8 +123,9 @@ ENVIRONMENT=development
 **Pre-flight checklist:**
 1. `docker compose up -d`, wait for healthchecks green.
 2. Migrations applied, labels loaded, admin created.
-3. **Fixture cache present and complete for all demo addresses** — a script verifies this and
-   fails loudly if a fixture is missing.
+3. **Fixture cache present and complete for all demo addresses** —
+   `python scripts/demo_fixtures.py --check` replays every demo trace offline through the
+   real tracing engine and exits non-zero naming any address whose fixture is missing.
 4. Full demo walkthrough executed once, end to end, on the actual presentation laptop.
 5. Screen resolution checked at 1366×768; both light and dark themes verified.
 6. **Network cable unplugged and the demo re-run**, to prove the offline path genuinely works.
