@@ -250,15 +250,20 @@ facing claim implies otherwise, and note the integration path in
 
 ## Blocking Phase 15 — Demo
 
-### OQ-15 · Which real addresses does the demo use?
-**Requirements.** Publicly documented as fraud-linked (OFAC designations, published incident
-reports, open research). Multi-hop fund flow. At least one terminating at an identifiable
-exchange. **At least one honestly unattributable** — the example that earns credibility. Ideally
-on TRON, with USDT.
-**Why it matters.** This choice determines how good the demo is more than any code written
-after Phase 10. Do not leave it to the last week.
-**Resolve by:** researching candidates during Phase 7, while curating labels — the two tasks
-share the same source material.
+### OQ-15 · Which real addresses does the demo use? — **RESOLVED 2026-09-06**
+Four OFAC-designated TRON addresses, in
+[`config/demo_addresses.yaml`](../config/demo_addresses.yaml), chosen by shape before any of
+them was run through the pipeline. Working: [OQ-15](research/OQ-15-demo-addresses.md).
+
+**One requirement was not met and is recorded rather than fudged:** none is known to terminate
+at an exchange we can name, because `data/labels/` covers 17 Binance TRON wallets and little
+else. Saying "the money reached Binance" when the labels merely fail to cover the wallet it
+reached would be the exact failure the product exists to avoid. The remedy is more first-party
+exchange disclosures through `scripts/curate_exchange_labels.py`, not a looser claim.
+
+The screening also produced a finding worth keeping: **only 5 of 40 sampled OFAC-designated
+TRON addresses had any outflow in the last ninety days.** The rest receive nothing but
+address-poisoning dust. Sanctioned addresses go quiet, and the demo says so.
 
 ---
 
