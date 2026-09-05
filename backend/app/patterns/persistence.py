@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models.blockchain import Address, Chain
 from app.db.models.enums import ChainCode
 from app.db.models.finding import PatternFinding
-from app.patterns.base import StageResult
+from app.patterns.base import Finding, StageResult
 
 log = logging.getLogger(__name__)
 
@@ -56,6 +56,31 @@ async def save(
         log.warning("pattern stage degraded: %s", result.unavailable)
     log.info("stored %d pattern findings on %s", len(rows), chain)
     return len(rows)
+
+
+async def load(
+    session: AsyncSession, analysis_run_id: uuid.UUID, chain: ChainCode
+) -> list[Finding]:
+    """Stored findings, back as the value object the risk engine already speaks."""
+    rows = await session.execute(
+        select(PatternFinding, Address.address)
+        .join(Address, Address.id == PatternFinding.subject_address_id)
+        .join(Chain, Chain.id == Address.chain_id)
+        .where(PatternFinding.analysis_run_id == analysis_run_id, Chain.code == chain)
+    )
+    return [
+        Finding(
+            pattern_type=row.pattern_type,
+            severity=row.severity,
+            subject_address=address,
+            explanation=row.explanation,
+            trigger_tx_hashes=list(row.trigger_tx_hashes),
+            metrics=dict(row.metrics),
+            false_positive_note=row.false_positive_note,
+            detector_version=row.detector_version,
+        )
+        for row, address in rows
+    ]
 
 
 async def _address_ids(

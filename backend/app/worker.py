@@ -1,7 +1,7 @@
 """Analysis queue worker.
 
 Runs the analysis pipeline stage by stage: RETRIEVAL, NORMALIZATION, TRACING, GRAPH,
-PATTERNS, ATTRIBUTION. Each stage declares whether it is required or degradable — a
+PATTERNS, ATTRIBUTION, RISK. Each stage declares whether it is required or degradable — a
 degradable stage that fails records why and lets the run continue as PARTIAL, because a
 partial answer with its limits stated is worth more than no answer.
 
@@ -18,6 +18,7 @@ import logging
 import sys
 import time
 import uuid
+from collections import Counter
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from fractions import Fraction
@@ -46,6 +47,9 @@ from app.normalize.transfer import NormalizedTransfer
 from app.orchestrator import queue
 from app.patterns import persistence as pattern_store
 from app.patterns.base import DETECTOR_VERSION, Subject, run_all
+from app.risk import engine as risk
+from app.risk import persistence as risk_store
+from app.risk.config import ENGINE_VERSION as RISK_VERSION
 from app.tracing import anchor as anchor_mod
 from app.tracing import persistence as trace_store
 from app.tracing.engine import trace
@@ -245,6 +249,63 @@ async def _graph_and_patterns(
     }
 
 
+async def _score_risk(
+    session: AsyncSession,
+    run: AnalysisRun,
+    chain: ChainCode,
+    result: TraceResult,
+    complete: bool,
+) -> dict[str, object]:
+    """RISK stage — degradable. Runs last because it reads every earlier stage's output."""
+    graph = builder.build(result)
+    attributions = await attribution.load(session, run.id)
+    features = await intel.build_profiles(
+        session, chain, list(result.nodes), result.params.asset_key
+    )
+    findings = await pattern_store.load(session, run.id, chain)
+    assessments = risk.score_all(
+        risk.Inputs(
+            trace=result,
+            graph=graph,
+            features=features,
+            attributions=attributions,
+            findings=findings,
+            cross_case=await _cross_case_matches(session, run, chain, list(result.nodes)),
+            data_complete=complete,
+            asset_symbol=result.edges[0].asset_symbol if result.edges else None,
+        )
+    )
+    written = await risk_store.save(session, run.id, run.case_id, chain, assessments)
+    root = assessments.get(result.root)
+    return {
+        "scored": written,
+        "config_version": next(iter(assessments.values())).config_version if assessments else None,
+        "root_score": root.score if root else None,
+        "root_band": str(root.band) if root else None,
+        "bands": Counter(str(a.band) for a in assessments.values()),
+    }
+
+
+async def _cross_case_matches(
+    session: AsyncSession, run: AnalysisRun, chain: ChainCode, addresses: list[str]
+) -> dict[str, bool]:
+    """Which of these addresses already appear in another case (FR-103)."""
+    seen = {
+        address
+        for (address,) in await session.execute(
+            select(Address.address)
+            .join(CaseAddress, CaseAddress.address_id == Address.id)
+            .join(Chain, Chain.id == Address.chain_id)
+            .where(
+                Chain.code == chain,
+                Address.address.in_(set(addresses)),
+                CaseAddress.case_id != run.case_id,
+            )
+        )
+    }
+    return {address: address in seen for address in addresses}
+
+
 async def _attribute(
     session: AsyncSession, run: AnalysisRun, chain: ChainCode, result: TraceResult
 ) -> dict[str, object]:
@@ -366,6 +427,21 @@ async def _run_pipeline(run_id: uuid.UUID) -> None:
             else:
                 engine_versions["attribution"] = ATTRIBUTION_VERSION
                 engine_versions["attribution_summary"] = attribution_summary
+
+            run.stage = AnalysisStage.RISK
+            run.progress_pct = 95
+            await session.commit()
+            try:
+                risk_summary = await _score_risk(
+                    session, run, chain_row.code, traced, bool(summary["complete"])
+                )
+            except Exception as exc:  # noqa: BLE001
+                log.exception("risk stage failed for run %s", run_id)
+                await session.rollback()
+                degradations.append({"stage": AnalysisStage.RISK, "detail": {"error": repr(exc)}})
+            else:
+                engine_versions["risk"] = RISK_VERSION
+                engine_versions["risk_summary"] = risk_summary
 
         run.progress_pct = 100
         run.stage = None

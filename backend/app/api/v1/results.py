@@ -15,16 +15,23 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 
-from app.attribution.decision import AttributionResult
+from app.attribution import engine as attribution
 from app.core.deps import SessionDep, get_accessible_case, require_role
 from app.core.exceptions import NotFound
 from app.db.models.analysis import AnalysisRun
 from app.db.models.blockchain import Address
 from app.db.models.entity import Attribution, Entity
-from app.db.models.enums import AttributionTier, EntityType, PatternType, UserRole
-from app.db.models.finding import PatternFinding
+from app.db.models.enums import (
+    AttributionTier,
+    EntityType,
+    PatternType,
+    RiskBand,
+    UserRole,
+)
+from app.db.models.finding import PatternFinding, RiskAssessment
 from app.db.models.user import User
 from app.graph import algorithms, builder, serialize
+from app.risk.engine import DISCLAIMER
 from app.tracing import persistence as trace_store
 
 router = APIRouter(tags=["results"])
@@ -65,7 +72,7 @@ async def get_graph(
     if trace is None:
         raise NotFound("This analysis has no trace")
 
-    graph = builder.enrich(builder.build(trace), await _attribution_results(session, run.id))
+    graph = builder.enrich(builder.build(trace), await attribution.load(session, run.id))
     payload = (
         serialize.expand(graph, expand_node, max_nodes)
         if expand_node
@@ -201,22 +208,52 @@ async def get_patterns(
     ]
 
 
-async def _attribution_results(session: SessionDep, run_id: uuid.UUID) -> dict[str, Any]:
-    """Attribution as the graph builder wants it, so node borders can carry the tier."""
-    rows = await session.execute(
-        select(Attribution, Address.address, Entity.name)
-        .join(Address, Address.id == Attribution.address_id)
-        .outerjoin(Entity, Entity.id == Attribution.entity_id)
-        .where(Attribution.analysis_run_id == run_id)
+@router.get("/analyses/{run_id}/risk")
+async def get_risk(
+    run_id: uuid.UUID,
+    user: Investigator,
+    session: SessionDep,
+    band: RiskBand | None = None,
+) -> dict[str, Any]:
+    """Risk assessments (FR-80..86), root first.
+
+    The breakdown is always returned. A score without its reasons is useless in exactly
+    the moment it is questioned, and `not_evaluated` is kept separate from zero-scoring
+    so "we did not check" never reads as "we checked and found nothing".
+    """
+    run = await _run(run_id, user, session)
+
+    statement = (
+        select(RiskAssessment, Address.address)
+        .join(Address, Address.id == RiskAssessment.address_id)
+        .where(RiskAssessment.analysis_run_id == run.id)
+        .order_by(RiskAssessment.score.desc(), Address.address)
+    )
+    if band is not None:
+        statement = statement.where(RiskAssessment.band == band)
+
+    rows = [_assessment(row, address) for row, address in await session.execute(statement)]
+    root_address = await session.scalar(
+        select(Address.address).where(Address.id == run.root_address_id)
     )
     return {
-        address: AttributionResult(
-            tier=row.tier,
-            entity_type=row.entity_type,
-            method=row.method,
-            entity_id=row.entity_id,
-            entity_name=entity_name,
-            evidence=row.evidence,
-        )
-        for row, address, entity_name in rows
+        "root": next((r for r in rows if r["address"] == root_address), None),
+        "nodes": rows,
+        "disclaimer": DISCLAIMER,
+    }
+
+
+def _assessment(row: RiskAssessment, address: str) -> dict[str, Any]:
+    return {
+        "address": address,
+        "score": row.score,
+        "band": row.band,
+        # Reported beside the score, never multiplied into it: "probably very bad on
+        # partial data" and "thoroughly checked and fine" must not collapse (FR-83).
+        "confidence": float(row.confidence),
+        "signals": row.signals,
+        "not_evaluated": row.not_evaluated,
+        "config_version": row.config_version,
+        "engine_version": row.engine_version,
+        "computed_at": row.computed_at,
     }

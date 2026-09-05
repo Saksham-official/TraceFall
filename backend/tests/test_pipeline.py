@@ -291,3 +291,49 @@ async def test_a_branch_the_fixtures_cannot_reach_is_reported_not_hidden(
     }
     assert TerminationReason.DATA_UNAVAILABLE in reasons
     assert TerminationReason.NO_OUTFLOW not in reasons
+
+
+async def test_the_risk_stage_scores_and_stores(session: AsyncSession) -> None:
+    from app.db.models.finding import RiskAssessment
+
+    run_id = await queued_run(session)
+
+    await worker._run_pipeline(run_id)
+
+    run = await session.get(AnalysisRun, run_id)
+    assert run is not None
+    await session.refresh(run)
+    assert "risk" in run.engine_versions
+    assert run.engine_versions["risk_summary"]["config_version"]
+
+    rows = (
+        await session.scalars(
+            select(RiskAssessment).where(RiskAssessment.analysis_run_id == run_id)
+        )
+    ).all()
+    assert rows
+    for row in rows:
+        assert 0 <= row.score <= 100
+        # The breakdown is the point; a score without it is useless when questioned.
+        assert row.signals
+        assert row.config_version and row.engine_version
+        assert 0 < float(row.confidence) <= 1
+
+
+async def test_every_stored_score_can_be_added_up_by_hand(session: AsyncSession) -> None:
+    """An investigator must be able to check the arithmetic themselves."""
+    from app.db.models.finding import RiskAssessment
+
+    run_id = await queued_run(session)
+    await worker._run_pipeline(run_id)
+
+    for row in (
+        await session.scalars(
+            select(RiskAssessment).where(RiskAssessment.analysis_run_id == run_id)
+        )
+    ).all():
+        total = sum(signal["points"] for signal in row.signals)
+        assert row.score == min(100, round(total))
+        for signal in row.signals:
+            assert signal["points"] <= signal["weight"]
+            assert signal["description"].strip()

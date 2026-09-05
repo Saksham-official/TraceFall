@@ -228,3 +228,57 @@ async def test_the_endpoints_require_authentication(client: AsyncClient) -> None
     for path in ("graph", "attributions", "patterns"):
         response = await client.get(f"/api/v1/analyses/{uuid.uuid4()}/{path}")
         assert response.status_code == 401, path
+
+
+async def test_the_risk_endpoint_returns_the_breakdown(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    run_id, email, _ = await completed_run(session)
+
+    body = (
+        await client.get(
+            f"/api/v1/analyses/{run_id}/risk", headers=auth(await token_for(client, email))
+        )
+    ).json()
+
+    assert body["nodes"]
+    assert body["root"] is not None
+    assert "Not a probability of fraud" in body["disclaimer"]
+    for node in body["nodes"]:
+        assert 0 <= node["score"] <= 100
+        assert node["band"] in ("LOW", "MEDIUM", "HIGH", "CRITICAL")
+        assert node["signals"], "the breakdown is never optional"
+        assert node["config_version"]
+        # Confidence rides alongside the score, never inside it.
+        assert 0 < node["confidence"] <= 1
+
+
+async def test_not_evaluated_stays_separate_from_zero_scoring(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    """A missing signal must be visible, not indistinguishable from one that scored 0."""
+    run_id, email, _ = await completed_run(session)
+
+    body = (
+        await client.get(
+            f"/api/v1/analyses/{run_id}/risk", headers=auth(await token_for(client, email))
+        )
+    ).json()
+
+    root = body["root"]
+    assert root["not_evaluated"], "backward tracing and darknet labels are absent by design"
+    for skipped in root["not_evaluated"]:
+        assert skipped["reason"].strip()
+    assert not ({n["name"] for n in root["not_evaluated"]} & {s["name"] for s in root["signals"]})
+
+
+async def test_the_risk_endpoint_is_case_isolated(
+    client: AsyncClient, session: AsyncSession
+) -> None:
+    run_id, _, _ = await completed_run(session)
+    await make_user(session, "outsider-risk@example.gov")
+    outsider = auth(await login(client, "outsider-risk@example.gov"))
+
+    assert (
+        await client.get(f"/api/v1/analyses/{run_id}/risk", headers=outsider)
+    ).status_code == 404

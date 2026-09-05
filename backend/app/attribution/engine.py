@@ -16,6 +16,7 @@ inference on inference until a confidence number meant nothing.
 import logging
 import uuid
 from collections.abc import Sequence
+from fractions import Fraction
 
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
@@ -23,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.attribution.decision import ENGINE_VERSION, AttributionResult, decide
 from app.db.models.blockchain import Address, Chain
-from app.db.models.entity import Attribution
+from app.db.models.entity import Attribution, Entity
 from app.db.models.enums import AttributionTier, ChainCode
 from app.intel import service as intel
 from app.labels import matcher
@@ -148,6 +149,32 @@ async def _address_ids(
                 Address.chain_id == chain_id, Address.address.in_(addresses)
             )
         )
+    }
+
+
+async def load(session: AsyncSession, analysis_run_id: uuid.UUID) -> dict[str, AttributionResult]:
+    """Stored attributions, back as the value object every consumer already speaks."""
+    rows = await session.execute(
+        select(Attribution, Address.address, Entity.name)
+        .join(Address, Address.id == Attribution.address_id)
+        .outerjoin(Entity, Entity.id == Attribution.entity_id)
+        .where(Attribution.analysis_run_id == analysis_run_id)
+    )
+    return {
+        address: AttributionResult(
+            tier=row.tier,
+            entity_type=row.entity_type,
+            method=row.method,
+            entity_id=row.entity_id,
+            entity_name=entity_name,
+            confidence=(
+                Fraction(row.confidence).limit_denominator(10**12)
+                if row.confidence is not None
+                else None
+            ),
+            evidence=row.evidence,
+        )
+        for row, address, entity_name in rows
     }
 
 
