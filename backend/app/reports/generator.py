@@ -18,6 +18,7 @@ from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.paths import resolve_writable
 from app.db.models.enums import NarrativeSource, ReportFormat, ReportType
 from app.db.models.output import Report
 from app.reports import pdf
@@ -41,7 +42,7 @@ class StorageUnavailable(RuntimeError):
 
 
 def storage_root() -> Path:
-    return Path(get_settings().report_storage_path)
+    return resolve_writable(get_settings().report_storage_path)
 
 
 def build(data: ReportData, report_id: uuid.UUID, report_format: ReportFormat) -> bytes:

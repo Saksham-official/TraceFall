@@ -94,7 +94,11 @@ class Settings(BaseSettings):
 
     evidence_storage_path: str = "var/evidence"
     report_storage_path: str = "var/reports"
+    # Located by search, not by counting `..` from __file__: a container puts these
+    # beside the working directory, a checkout puts them above the package.
     fixture_path: str = "tests/fixtures/chain_data"
+    risk_config_path: str = "config/risk_weights.yaml"
+    label_data_path: str = "data/labels"
 
     @model_validator(mode="after")
     def _production_is_hardened(self) -> "Settings":

@@ -11,13 +11,18 @@ from pathlib import Path
 
 from sqlalchemy import select
 
+from app.core.config import get_settings
+from app.core.paths import resolve
 from app.core.security import MIN_PASSWORD_LENGTH, hash_password
 from app.db.models.enums import UserRole
 from app.db.models.user import User
 from app.db.session import SessionFactory
 from app.labels import loader
 
-DEFAULT_LABELS_DIR = Path(__file__).resolve().parents[2] / "data" / "labels"
+
+def default_labels_dir() -> Path:
+    return resolve(get_settings().label_data_path, setting="LABEL_DATA_PATH")
+
 
 # Passwords that clear the length rule but are still guessable. Entries shorter than
 # MIN_PASSWORD_LENGTH would be unreachable, so every entry here is long enough to matter.
@@ -92,13 +97,13 @@ def main() -> int:
     admin.add_argument("--email")
     admin.add_argument("--full-name")
     labels = sub.add_parser("load-labels", help="Ingest the curated label datasets")
-    labels.add_argument("--directory", type=Path, default=DEFAULT_LABELS_DIR)
+    labels.add_argument("--directory", type=Path, default=None)
 
     args = parser.parse_args()
     if args.command == "create-admin":
         return asyncio.run(create_admin(args.email, args.full_name))
     if args.command == "load-labels":
-        return asyncio.run(load_labels(args.directory))
+        return asyncio.run(load_labels(args.directory or default_labels_dir()))
     return 1
 
 

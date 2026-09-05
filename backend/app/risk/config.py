@@ -16,9 +16,9 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, Field, model_validator
 
+from app.core.config import get_settings
+from app.core.paths import resolve
 from app.db.models.enums import RiskBand
-
-DEFAULT_PATH = Path(__file__).resolve().parents[3] / "config" / "risk_weights.yaml"
 
 ENGINE_VERSION = "1.0.0"
 
@@ -81,8 +81,12 @@ class RiskConfig(BaseModel):
         raise ValueError(f"score {score} falls outside every band")
 
 
+def default_path() -> Path:
+    return resolve(get_settings().risk_config_path, setting="RISK_CONFIG_PATH")
+
+
 def load(path: Path | None = None) -> RiskConfig:
-    raw: dict[str, Any] = yaml.safe_load((path or DEFAULT_PATH).read_text())
+    raw: dict[str, Any] = yaml.safe_load((path or default_path()).read_text())
     return RiskConfig.model_validate(raw)
 
 

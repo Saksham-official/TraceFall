@@ -13,6 +13,7 @@ from typing import Any
 
 from app.chains.base import RawResponse
 from app.core.config import get_settings
+from app.core.paths import resolve
 
 # Params derived from wall-clock time or credentials would make a fixture key unmatchable
 # on replay: a window computed as "last 90 days" differs every run. They are excluded from
@@ -34,14 +35,21 @@ class FixtureMissing(RuntimeError):
     """
 
 
-# Resolved against the backend package, not the working directory, so the capture script
-# and the test suite always read and write the same place.
-BACKEND_ROOT = Path(__file__).resolve().parents[2]
-
-
 def fixture_root() -> Path:
+    """Where committed fixtures live.
+
+    Searched rather than derived from `__file__`, so the same setting works from a source
+    checkout and from an image where the package is installed elsewhere. Capture writes
+    here too, so a directory that does not exist yet is created rather than rejected.
+    """
     configured = Path(get_settings().fixture_path)
-    return configured if configured.is_absolute() else BACKEND_ROOT / configured
+    if configured.is_absolute():
+        return configured
+    try:
+        return resolve(str(configured), setting="FIXTURE_PATH")
+    except FileNotFoundError:
+        # Capture runs before any fixture exists.
+        return Path.cwd() / configured
 
 
 def fixture_key(provider: str, endpoint: str, params: dict[str, Any]) -> str:
