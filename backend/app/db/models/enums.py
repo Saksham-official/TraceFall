@@ -120,6 +120,9 @@ class TerminationReason(StrEnum):
     NO_OUTFLOW = "NO_OUTFLOW"
     EDGE_BUDGET = "EDGE_BUDGET"
     TIME_WINDOW = "TIME_WINDOW"
+    # Not a finding: the branch ended because retrieval could not answer, which is a
+    # different statement from "nothing left this address" (ADR-019).
+    DATA_UNAVAILABLE = "DATA_UNAVAILABLE"
 
 
 class PatternType(StrEnum):

@@ -13,9 +13,9 @@ from app.db.models.blockchain import Address, Asset, Chain
 from app.db.models.case import Case
 from app.db.models.enums import AnalysisStatus, ChainCode, TaintModel, TerminationReason
 from app.intel import service as intel
-from app.tracing import persistence
+from app.tracing import invariants, persistence
 from app.tracing.engine import trace
-from app.tracing.models import TraceParams
+from app.tracing.models import TraceParams, TransfersUnavailable
 from tests.conftest import make_user
 from tests.tracing_fixtures import USDT, fetcher, services, tx
 
@@ -154,3 +154,73 @@ async def test_trace_rows_reference_their_analysis_run(session: AsyncSession) ->
     saved = await persistence.save(session, run, result, ChainCode.TRON)
     found = await session.scalar(select(Trace).where(Trace.analysis_run_id == run.id))
     assert found is not None and found.id == saved.id
+
+
+async def test_a_reloaded_trace_keeps_what_it_did_not_follow(session: AsyncSession) -> None:
+    """The graph is rebuilt from these rows, so a pruned branch lost here is lost for good."""
+    run, _ = await _run(session)
+    transfers = [tx("VICTIM", "SCAM", 1_000_000, 0)] + [
+        tx("SCAM", f"OUT{i:02d}", 100_000 - i * 1_000, 10) for i in range(10)
+    ]
+    result = await trace(
+        "SCAM",
+        1_000_000,
+        fetcher(transfers),
+        TraceParams(asset_key=f"{ChainCode.TRON}:{USDT}", fanout_cap=3),
+    )
+    assert result.pruned, "the fixture must actually prune something"
+    await persistence.save(session, run, result, ChainCode.TRON)
+
+    reloaded = await persistence.load(session, run.id)
+
+    assert reloaded is not None
+    assert reloaded.root == result.root
+    assert len(reloaded.nodes) == len(result.nodes)
+    assert len(reloaded.edges) == len(result.edges)
+    assert [(b.from_address, b.to_address, b.reason) for b in reloaded.pruned] == [
+        (b.from_address, b.to_address, b.reason) for b in result.pruned
+    ]
+    assert reloaded.total_pruned == result.total_pruned
+
+
+async def test_the_accounting_invariant_survives_the_round_trip(session: AsyncSession) -> None:
+    """If value cannot be re-accounted from stored rows, a report cannot cite it."""
+    run, _ = await _run(session)
+    transfers = [
+        tx("VICTIM", "SCAM", 1_000_000, 0),
+        tx("SCAM", "A", 600_000, 10),
+        tx("SCAM", "B", 400_000, 10),
+    ]
+    result = await trace(
+        "SCAM", 1_000_000, fetcher(transfers), TraceParams(asset_key=f"{ChainCode.TRON}:{USDT}")
+    )
+    await persistence.save(session, run, result, ChainCode.TRON)
+
+    reloaded = await persistence.load(session, run.id)
+
+    assert reloaded is not None
+    invariants.check(reloaded)
+    assert reloaded.original_amount == result.original_amount
+
+
+async def test_addresses_the_trace_could_not_reach_survive_storage(
+    session: AsyncSession,
+) -> None:
+    run, _ = await _run(session)
+    transfers = [tx("VICTIM", "SCAM", 1_000, 0), tx("SCAM", "GONE", 1_000, 10)]
+
+    async def fetch(address: str) -> list:
+        if address == "GONE":
+            raise TransfersUnavailable(address, "no fixture is committed for this address")
+        return [t for t in transfers if address in (t.from_address, t.to_address)]
+
+    result = await trace(
+        "SCAM", 1_000, fetch, TraceParams(asset_key=f"{ChainCode.TRON}:{USDT}", max_depth=3)
+    )
+    await persistence.save(session, run, result, ChainCode.TRON)
+
+    reloaded = await persistence.load(session, run.id)
+
+    assert reloaded is not None
+    assert [u["address"] for u in reloaded.unavailable] == ["GONE"]
+    assert reloaded.nodes["GONE"].termination_reason is TerminationReason.DATA_UNAVAILABLE

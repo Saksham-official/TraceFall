@@ -80,6 +80,10 @@ class Trace(Base):
     node_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     edge_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     total_traced_raw: Mapped[Decimal | None] = mapped_column(RawAmount)
+    # Branches the trace did not follow, and addresses it could not retrieve. Both are
+    # part of the answer: an investigator must see what was left out (principle 12).
+    pruned: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, server_default="[]")
+    unavailable: Mapped[list[Any]] = mapped_column(JSONB, nullable=False, server_default="[]")
     computed_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False)
 
 
@@ -99,6 +103,10 @@ class TraceNode(Base):
     # Fraction of the original tainted value attributed here (haircut model).
     taint_share: Mapped[Decimal] = mapped_column(Fraction, nullable=False)
     tainted_amount_raw: Mapped[Decimal] = mapped_column(RawAmount, nullable=False)
+    # Without this the accounting invariant cannot be re-checked from stored rows.
+    pruned_amount_raw: Mapped[Decimal] = mapped_column(
+        RawAmount, nullable=False, server_default="0"
+    )
     is_terminal: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     termination_reason: Mapped[TerminationReason | None] = mapped_column(
         pg_enum(TerminationReason, "termination_reason")

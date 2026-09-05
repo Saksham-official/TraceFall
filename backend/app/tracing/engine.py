@@ -35,6 +35,7 @@ from app.tracing.models import (
     TraceParams,
     TracePath,
     TraceResult,
+    TransfersUnavailable,
 )
 
 log = logging.getLogger(__name__)
@@ -141,7 +142,15 @@ async def trace(
                 _terminate(node, TerminationReason.EDGE_BUDGET)
                 continue
 
-            transfers = _eligible(await fetch(node.address), params)
+            try:
+                fetched = await fetch(node.address)
+            except TransfersUnavailable as exc:
+                # The branch ends because we could not look, which is not the same claim
+                # as "the funds stopped here" (ADR-019).
+                _terminate(node, TerminationReason.DATA_UNAVAILABLE)
+                result.unavailable.append({"address": exc.address, "reason": exc.reason})
+                continue
+            transfers = _eligible(fetched, params)
             result.addresses_fetched += 1
 
             flows = _aggregate_outflows(transfers, node, params)

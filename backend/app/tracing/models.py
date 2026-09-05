@@ -20,6 +20,20 @@ FetchTransfers = Callable[[str], Awaitable[list[NormalizedTransfer]]]
 IsServiceBoundary = Callable[[str], Awaitable[bool]]
 
 
+class TransfersUnavailable(Exception):
+    """The fetch callback could not answer for this address.
+
+    Raised by the orchestrator's callback, never by the engine, so the algorithm stays
+    network-free while still able to tell "nothing there" from "could not look"
+    (ADR-019).
+    """
+
+    def __init__(self, address: str, reason: str) -> None:
+        super().__init__(f"{address}: {reason}")
+        self.address = address
+        self.reason = reason
+
+
 class PruneReason:
     BELOW_THRESHOLD = "BELOW_THRESHOLD"
     FANOUT_CAP = "FANOUT_CAP"
@@ -129,6 +143,9 @@ class TraceResult:
     pruned: list[PrunedBranch] = field(default_factory=list)
     paths: list[TracePath] = field(default_factory=list)
     addresses_fetched: int = 0
+    # Addresses the trace reached but could not retrieve. Surfaced, never swallowed: a
+    # branch that ends here is a gap in the answer, not the end of the money.
+    unavailable: list[dict[str, str]] = field(default_factory=list)
 
     @property
     def terminals(self) -> list[TraceNode]:
