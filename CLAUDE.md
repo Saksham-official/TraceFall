@@ -6,38 +6,41 @@
 
 ## Current phase
 
-> ## PHASE 8 — RISK ENGINE (next)
-> **Phases 0–6 are complete. The pipeline is wired and runs end to end offline.** Phase 7
-> (attribution) is built, tested and serving, but stays ◐ for one reason only: the exchange
-> label set. Phase 10 (frontend) is partially built.
+> ## DEMO-READY — PHASE 12 (security hardening) NEXT
+> **Phases 0–8 and 11 are complete. The product works end to end, offline, through the UI.**
+> Phase 10 (frontend) has its investigation workspace; Phase 7 stays ◐ for one reason only,
+> below.
 >
-> A run goes RETRIEVAL → NORMALIZATION → TRACING → GRAPH → PATTERNS → ATTRIBUTION and the
-> results are reachable at `GET /analyses/{id}/graph`, `/attributions` and `/patterns`.
-> Verified through the HTTP API with no network: a suspect address sweeping to a labelled
-> exchange returns **`PROBABLE — <exchange>, 0.80`** by `DEPOSIT_HEURISTIC` with ten evidence
-> items, while the exchange itself returns `CONFIRMED` carrying no confidence number.
+> A run goes RETRIEVAL → NORMALIZATION → TRACING → GRAPH → PATTERNS → ATTRIBUTION → RISK, and
+> an investigator can sign in, open the findings, read the graph, and download a PDF for the
+> case file. **Verified in a real browser against the running stack.** A suspect address
+> sweeping to a labelled exchange reports `PROBABLE — <exchange>, 0.80` by `DEPOSIT_HEURISTIC`
+> with its evidence, the exchange itself reports `CONFIRMED` with no confidence number, and the
+> risk score shows every signal it added up.
 >
-> 363 backend tests and 32 frontend tests pass, with no network access. ruff, `ruff format
-> --check` and mypy `strict` are clean across 81 source files. The migration chain applies
-> cleanly to an empty database.
+> 410 backend tests and 45 frontend tests pass, with no network access. ruff, `ruff format
+> --check` and mypy `strict` are clean across 92 source files; eslint, `tsc -b` and
+> `vite build` are clean. The migration chain applies to an empty database.
 >
 > **Provider reality, measured (`docs/research/OQ-01-provider-rate-limits.md`):** TronGrid
 > without a key sustains only 0.5 req/s *per RPC method*; Blockscout is Ethereum's primary
-> because Etherscan now rejects keyless requests. NFR-01's 120-second target holds for a warm
-> or fixture cache, not a cold live trace. **Retrieval now happens twice** — the root address
-> up front, then every address the trace discovers, on demand — so a cold live trace is bounded
-> by that rate, and in fixture mode every hop past a fixtured address ends `DATA_UNAVAILABLE`.
+> because Etherscan now rejects keyless requests. Retrieval happens twice — the root address up
+> front, then every address the trace discovers — so a cold live trace is bounded by that rate,
+> and in fixture mode every hop past a fixtured address ends `DATA_UNAVAILABLE`.
 >
 > **The one thing blocking Phase 7 is not code.** `data/labels/ofac_sanctioned.json` holds 405
-> real sanctioned addresses, so `CONFIRMED` currently means sanctions only and a real deposit
-> address resolves to "a deposit address for an unidentified service". The engine is ready for
-> exchange labels and proven to use them. Curating them needs **ADR-018 signed by a named
-> person** (drafted, in DECISIONS.md) and **TronScan's terms read in a browser**. This is the
-> single highest-leverage hour of work in the project (MVP_SCOPE.md §6).
+> real sanctioned addresses, so `CONFIRMED` means sanctions only and a real deposit address
+> resolves to "a deposit address for an unidentified service". The engine is ready for exchange
+> labels and proven to use them — the demo above uses one hand-added label. Curating a real set
+> needs **ADR-018 signed by a named person** (drafted, in DECISIONS.md) and **TronScan's terms
+> read in a browser**. Highest-leverage hour of work left (MVP_SCOPE.md §6).
 >
-> Next is **Phase 8 — the risk engine**: transparent weighted rules from versioned config, one
-> evaluator per signal, confidence returned separately from the score, and `not_evaluated`
-> tracking so a missing input is never a silent zero. Its dependencies (6 and 7) are met.
+> **Known gap that shows in a demo:** the refresh token is returned in the response body and
+> held in memory, so a page reload signs the user out. Issuing it as an httpOnly cookie is a
+> Phase 12 item worth pulling forward; the client already sends `credentials: 'include'`.
+>
+> Remaining phases: **12 (security hardening)**, 13 (testing and QA), 14 (deployment), 15 (SIH
+> demo hardening). Phase 9 (ML) is optional and first on the cut list.
 > Update the phase table in `IMPLEMENTATION_PLAN.md` when a phase completes, and update this
 > banner when the phase changes.
 >
