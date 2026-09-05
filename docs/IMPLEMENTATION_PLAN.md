@@ -30,7 +30,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 12 | Security hardening | ☑ | 2, 10 |
 | 13 | Testing & QA | ☑ | all |
 | 14 | Deployment | ☑ | 10 |
-| 15 | SIH demo hardening | ☐ | 13, 14 |
+| 15 | SIH demo hardening | ◐ | 13, 14 |
 
 ---
 
@@ -949,7 +949,7 @@ compose file and path resolution — so the four bugs findable without a daemon 
 
 ---
 
-## Phase 15 — SIH demo hardening ☐
+## Phase 15 — SIH demo hardening ◐
 **Depends on:** 13, 14
 
 **Goal.** A demo that cannot fail.
@@ -968,6 +968,35 @@ prominent** · the recording exists · every presentation claim is checkable aga
 `LIMITATIONS.md §13`.
 **DoD.** The demo has been rehearsed end to end, on the presentation machine, offline, more
 than once.
+
+### Done
+
+- ☑ **Addresses selected** — four OFAC-designated TRON addresses in
+  [`config/demo_addresses.yaml`](../config/demo_addresses.yaml), chosen by shape before any
+  was run. OQ-15 is resolved, including the requirement it could **not** meet:
+  [research note](research/OQ-15-demo-addresses.md).
+- ☑ **Fixtures captured and gated** — 800 responses, 27 MB gzipped.
+  `python scripts/demo_fixtures.py --check` replays all four traces offline through the real
+  tracing engine and fails naming any address whose fixture is missing.
+- ☑ **Every demo path verified end to end, offline and measured** — 70 s / 30 s / 2 s / 2 s
+  against NFR-01's 120 s budget, with the graph, attribution, pattern and risk output of each
+  recorded in [DEMO_SCRIPT.md](DEMO_SCRIPT.md). **1,959 evidence items, every one
+  `is_fixture = true` and none from the network.**
+- ☑ **Demo script with timings and Q&A** — [DEMO_SCRIPT.md](DEMO_SCRIPT.md), every answer
+  bounded by LIMITATIONS.md §13.
+- ☑ **1366×768 in both themes** — no horizontal overflow on any of the seven workspace tabs.
+- ☑ **UI polish on the demo path** — the case page no longer holds five tabs promising later
+  phases; the overview no longer lists all sixty pattern findings; attribution evidence renders
+  as fields rather than a 3,500-pixel JSON line.
+- ☑ **Error-state review** — the sign-in limit, a partial run, an unavailable branch and a
+  failed stage each state what happened and what it means.
+
+### Remaining
+
+- ☐ **The walkthrough run with the network physically disconnected**, on the presentation
+  machine, more than once. Offline operation is proven by the evidence table; what is left is
+  the rehearsal itself, which cannot be done for you.
+- ☐ **Fallback screen recording.** One take of the full walkthrough, one keystroke away.
 
 ---
 
