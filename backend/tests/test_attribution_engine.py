@@ -254,3 +254,27 @@ async def test_a_sanctioned_address_is_a_finding_not_a_boundary(
     assert results[HOT].tier is AttributionTier.CONFIRMED
     assert results[HOT].entity_type is EntityType.SANCTIONED
     assert await engine.ServiceBoundaryChecker(session, ChainCode.TRON)(HOT) is False
+
+
+async def test_the_exchange_is_named_even_when_it_is_inside_the_traced_set(
+    session: AsyncSession,
+) -> None:
+    """The common case: the trace followed the money to the exchange, so it is in the set.
+
+    Regression. Resolving only the destinations *outside* the requested addresses looked
+    like an optimisation, and cost exactly the answer the product exists to give — the
+    deposit address reported an unidentified service while its confirmed exchange sat one
+    hop away in the same result.
+    """
+    await scaffold(session)
+    await label_hot_wallet(session)
+
+    together = await engine.attribute(session, ChainCode.TRON, [DEPOSIT, HOT])
+    alone = await engine.attribute(session, ChainCode.TRON, [DEPOSIT])
+
+    assert together[DEPOSIT].entity_name == "Test Exchange"
+    assert together[DEPOSIT].tier is AttributionTier.PROBABLE
+    assert together[HOT].tier is AttributionTier.CONFIRMED
+    # Asking about the deposit address alone must not give a different answer.
+    assert alone[DEPOSIT].entity_name == together[DEPOSIT].entity_name
+    assert alone[DEPOSIT].confidence == together[DEPOSIT].confidence

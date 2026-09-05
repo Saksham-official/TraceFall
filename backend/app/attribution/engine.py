@@ -44,18 +44,23 @@ async def attribute(
 
     features = await intel.build_profiles(session, chain, wanted, asset_key)
 
-    # Pass one: the addresses each subject sweeps to, decided on their own merits.
+    # Pass one: every address a subject sweeps to, decided on its own merits.
+    #
+    # Destinations inside the traced set are resolved here too. Skipping them because
+    # they will be decided in pass two anyway looks like an optimisation and is a bug: a
+    # deposit address whose exchange is *also* in the trace — the common case, since the
+    # trace followed the money there — would lose its chained inference and report "a
+    # deposit address for an unidentified service" while the exchange sat one hop away,
+    # confirmed.
     destinations = {
-        f.dominant_out_destination
-        for f in features.values()
-        if f.dominant_out_destination and f.dominant_out_destination not in wanted
+        f.dominant_out_destination for f in features.values() if f.dominant_out_destination
     }
-    destination_features = await intel.build_profiles(
-        session, chain, sorted(destinations), asset_key
-    )
-    labels = await matcher.labels_for(session, chain, wanted + sorted(destinations))
+    outside = sorted(destinations - set(wanted))
+    destination_features = await intel.build_profiles(session, chain, outside, asset_key)
+    known_features = {**features, **destination_features}
+    labels = await matcher.labels_for(session, chain, wanted + outside)
     resolved = {
-        address: decide(address, labels.get(address), destination_features.get(address))
+        address: decide(address, labels.get(address), known_features.get(address))
         for address in sorted(destinations)
     }
 
