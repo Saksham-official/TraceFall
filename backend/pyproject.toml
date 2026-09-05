@@ -10,6 +10,10 @@ dependencies = [
     "pydantic-settings>=2.6",
     "sqlalchemy[asyncio]>=2.0.36",
     "asyncpg>=0.30",
+    # Alembic runs synchronously (see Settings.sync_database_url), and running
+    # migrations is a documented runtime operation in the container — so this is a
+    # dependency, not a dev extra. It was only ever present by accident locally.
+    "psycopg2-binary>=2.9",
     "alembic>=1.14",
     "redis>=5.2",
     "argon2-cffi>=23.1",
