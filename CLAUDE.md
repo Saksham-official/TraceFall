@@ -6,35 +6,45 @@
 
 ## Current phase
 
-> ## PHASE 7 — VASP ATTRIBUTION (next)
-> Phases 0–5 are complete and Phase 10 (frontend) is partially built. The backend
-> authenticates, stores cases and suspect addresses, validates TRON and Ethereum addresses,
-> **retrieves real blockchain data** with caching, per-method rate limiting, retry, failover,
-> evidence capture and a committed fixture cache that replays offline, **normalizes it into
-> the canonical `Transfer` model**, and **traces fund flow** with haircut taint, six
-> termination reasons and a production accounting invariant. The frontend covers login,
-> dashboard, case and address intake, and analysis progress.
-> **Nothing is attributed, graphed or scored yet.**
+> ## PHASES 6 AND 7 — ENGINES BUILT, PIPELINE NOT WIRED
+> Phases 0–5 are complete. **Phases 6 and 7 have their engines built and tested but are not
+> finished**, and Phase 10 (frontend) is partially built. The backend authenticates, stores
+> cases and suspect addresses, validates TRON and Ethereum addresses, **retrieves real
+> blockchain data** with caching, per-method rate limiting, retry, failover, evidence capture
+> and a committed fixture cache that replays offline, **normalizes it** into the canonical
+> `Transfer` model, **traces fund flow** with haircut taint and a production accounting
+> invariant, **attributes addresses** across the three tiers, **builds the graph** with its
+> derived measures and render cap, and **detects six behavioural patterns**.
 >
-> 239 backend tests and 32 frontend tests pass, with no network access.
+> 337 backend tests and 32 frontend tests pass, with no network access.
 >
 > **Provider reality, measured (`docs/research/OQ-01-provider-rate-limits.md`):** TronGrid
 > without a key sustains only 0.5 req/s *per RPC method*; Blockscout is Ethereum's primary
 > because Etherscan now rejects keyless requests. NFR-01's 120-second target holds for a warm
 > or fixture cache, not a cold live trace.
 >
-> Next is **Phase 7 — VASP attribution**, the phase that answers PS26183. The rules that
-> matter are in [docs/VASP_IDENTIFICATION.md](docs/VASP_IDENTIFICATION.md) — dataset match
-> yields `CONFIRMED`, the deposit-funnel heuristic yields `PROBABLE` with its confidence
-> bounded by the weakest link in the chain, and reaching `UNATTRIBUTED` often means the system
-> is working. Phase 6 (graph and patterns) can run in parallel.
+> **Three things block progress, and all three are decisions rather than code.** Each is
+> written up where it belongs; the per-phase detail is in `IMPLEMENTATION_PLAN.md`.
+>
+> 1. **The exchange label set does not exist.** `data/labels/ofac_sanctioned.json` holds 405
+>    real sanctioned addresses, so `CONFIRMED` currently means sanctions only and every deposit
+>    address resolves to "a deposit address for an unidentified service". **ADR-018 is drafted
+>    and needs a named signer**, and TronScan's terms need reading in a browser. This is the
+>    single highest-leverage hour of work in the project (MVP_SCOPE.md §6).
+> 2. **OQ-18 — how does a trace report an address it could not fetch?** Today it terminates as
+>    `NO_OUTFLOW`, which claims nothing left the address rather than admitting we could not
+>    look. Needs an ADR before the TRACING stage is wired into `worker.py`.
+> 3. **The pipeline stops after NORMALIZATION.** Tracing, graph, patterns and attribution are
+>    all built and tested but nothing calls them yet — blocked on item 2.
+>
+> Once those are settled the natural order is: wire the pipeline, add
+> `api/v1/{graph,patterns,attribution}.py`, then **Phase 8 — the risk engine**, whose
+> dependencies (6 and 7) are otherwise met.
 > Update the phase table in `IMPLEMENTATION_PLAN.md` when a phase completes, and update this
 > banner when the phase changes.
 >
-> **Outstanding.** The tracing engine is not yet called by the pipeline — `worker.py` stops
-> after NORMALIZATION, and `engine.trace`'s `is_service_boundary` callback stays `None` until
-> this phase supplies it. `docker compose up` has not been run (Docker is not installed on the
-> development machine).
+> Outstanding from Phase 1: `docker compose up` has not been run (Docker is not installed on
+> the development machine).
 
 ---
 
