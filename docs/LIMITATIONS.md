@@ -237,6 +237,11 @@ disclosed sources and methods. Admissibility is determined by courts and by agen
 inherent to third-party APIs and is a genuine counter-intelligence consideration for sensitive
 investigations. The mitigation is a self-hosted node, which is future work.
 
+**Sign-in is single-factor.** TOTP MFA is specified (Phase 12, `SHOULD`) and is not built. A
+stolen or reused investigator password is enough to reach case data, and case data is the
+product. This is acceptable for a demonstration and is **not** acceptable for a deployment
+holding real case material — MFA belongs in the first hardening pass before any such use.
+
 ---
 
 ## 12. Demo-specific
