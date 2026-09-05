@@ -631,13 +631,37 @@ banner; the analysis progress screen; and the case-detail shell whose later-phas
 rather than showing fabricated data. 32 frontend tests; eslint, `tsc -b`, vitest and `vite build`
 all pass.
 
-**Still to build** (waiting on their APIs): the Cytoscape graph, timeline scrubber, transactions
-table, patterns, attribution tab contents, evidence tab, report page, Quick Trace, and global
-address search.
+**Investigation workspace delivered 2026-09-05**, now that Phases 6–8 and 11 supply real data.
+45 frontend tests; eslint, `tsc -b`, vitest and `vite build` all pass.
+
+- `InvestigationPage` with seven tabs — Overview, Graph, Transactions, Patterns, Attribution,
+  Risk, Evidence — each rendering lazily, so opening the workspace costs one request not seven.
+- `GraphView` on Cytoscape with the breadth-first hierarchical layout: **fill carries the risk
+  band, border style carries the attribution tier**, and the legend states both in words.
+- Report generation and download from the Evidence tab, with the document's SHA-256 shown.
+- The truncation banner, the unavailable-addresses banner, and a "what this analysis could not
+  do" panel are all wired to real fields rather than being decorative.
+
+**Verified in a real browser** against the running stack: sign in → workspace → graph → generate
+a PDF → download it with its hash. Two bugs were found that way and fixed:
+- **The graph labelled a `PROBABLE` node identically to a `CONFIRMED` one.** A deposit address
+  and the exchange it sweeps to carry the same entity name, so the canvas showed two nodes both
+  reading "CoinDCX" — the picture collapsed the tiers the rest of the product keeps apart. The
+  label now reads "likely CoinDCX" for an inference, in words, not only in the border style.
+- **Report generation returned a 500 outside Docker** (see the storage commit).
+
+**Still to build:** timeline scrubber (`SHOULD`), Quick Trace, global address search, and a
+standalone report page — the report is generated from the Evidence tab today.
+
+**Graceful degradation added while testing:** a browser with no drawing canvas gets a stated
+banner and the address list rather than a crashed screen. This also removed the need for a
+native `canvas` build in the test environment.
 
 **Blocked on a backend change:** the refresh token is returned in the response body, so holding
 it only in memory means a page reload signs the user out. Issuing it as an httpOnly cookie is a
 Phase 12 item that is worth pulling forward — the client already sends `credentials: 'include'`.
+This is visible in the demo: a full page reload, or pasting a workspace URL into a fresh tab,
+returns to the sign-in screen.
 
 ---
 
