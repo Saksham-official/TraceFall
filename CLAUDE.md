@@ -6,8 +6,8 @@
 
 ## Current phase
 
-> ## DEMO-READY — PHASE 13 (testing & QA) NEXT
-> **Phases 0–8, 11 and 12 are complete. The product works end to end, offline, through the
+> ## DEMO-READY — PHASE 14 (deployment) NEXT
+> **Phases 0–8, 11 and 12 are complete, and 13 is largely done. The product works end to end, offline, through the
 > UI.** Phase 10 (frontend) has its investigation workspace; Phase 7 stays ◐ for one reason
 > only, below.
 >
@@ -16,9 +16,16 @@
 > case file. **Verified in a real browser against the running stack**, including that a page
 > reload keeps the session and that the refresh cookie is invisible to script.
 >
-> 435 backend tests and 47 frontend tests pass, with no network access. ruff, `ruff format
-> --check` and mypy `strict` are clean across 94 source files; eslint, `tsc -b` and
+> 484 backend tests and 47 frontend tests pass, with no network access. Coverage is measured
+> and gated per engine: **97.6% `tracing/`, 98.2% `attribution/`, 97.2% `risk/`**. ruff, `ruff
+> format --check` and mypy `strict` are clean across 94 source files; eslint, `tsc -b` and
 > `vite build` are clean. The migration chain applies to an empty database.
+>
+> **The golden case is the regression lock.** `tests/test_golden_case.py` runs the whole
+> pipeline over committed fixtures and compares every number against `tests/golden/expected.json`
+> — taint per node, both attribution tiers, pattern findings, every risk signal, the report
+> headline. Changing one of those numbers fails CI. Update it with `UPDATE_GOLDEN=1` and say in
+> the commit why the number moved.
 >
 > **Provider reality, measured (`docs/research/OQ-01-provider-rate-limits.md`):** TronGrid
 > without a key sustains only 0.5 req/s *per RPC method*; Blockscout is Ethereum's primary
@@ -38,8 +45,13 @@
 > secrets redacted from logs. **Sign-in is single-factor** — TOTP MFA is specified and not
 > built, which LIMITATIONS.md §11 now states.
 >
-> Remaining phases: **13 (testing & QA)**, 14 (deployment), 15 (SIH demo hardening). Phase 9
-> (ML) is optional and first on the cut list.
+> Remaining phases: **14 (deployment)**, 15 (SIH demo hardening), and the tail of 13 —
+> Playwright E2E, which needs the compose stack from 14 to drive. Phase 9 (ML) is optional and
+> first on the cut list.
+>
+> **Docker is not installed on this machine**, so Phase 14's acceptance criterion —
+> `docker compose up` reaching five healthy containers — cannot be verified here. The images and
+> configuration can be written and the builds checked; the run cannot.
 > Update the phase table in `IMPLEMENTATION_PLAN.md` when a phase completes, and update this
 > banner when the phase changes.
 >
