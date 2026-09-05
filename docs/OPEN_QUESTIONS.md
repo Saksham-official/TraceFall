@@ -118,9 +118,9 @@ embarrassment in a Ministry of Home Affairs problem statement.
 **Resolve by:** reading each dataset's licence individually and recording it in its
 `label_sources` row. **No dataset is ingested until its licence is confirmed and written down.**
 *Enforced in code 2026-09-05:* a label dataset with no `licence` field fails to parse, so an
-unlicensed dataset cannot reach the database. OFAC is ingested (405 addresses). **The ADR
-resolving the facts-versus-compilation judgement still needs a named signer**, and TronScan's
-terms still need reading in a browser; both gate the exchange label set.
+unlicensed dataset cannot reach the database. OFAC is ingested (405 addresses). **ADR-018 is
+drafted and awaiting a named signer**, and TronScan's terms still need reading in a browser;
+both gate the exchange label set.
 
 ### OQ-08 · Is there adequate public label coverage for **TRON** exchange hot wallets?
 **Answered 2026-09-05: yes, by curation.** Full findings in

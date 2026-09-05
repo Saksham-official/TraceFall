@@ -419,3 +419,61 @@ over it. It also keeps a graph node meaning one address, which every other engin
 temporary limitation, and it belongs in `LIMITATIONS.md` alongside mixers and bridges. Tracing
 through a swap needs the per-asset model, which is the natural upgrade if it turns out to
 matter. Running a second trace from the swap output is the manual workaround.
+
+---
+
+## ADR-018 — Label provenance is what we observed, not where we got the idea
+
+**Status:** ⚠️ **Proposed — needs a named signer before any exchange label is ingested.**
+Everything below is drafted; the decision itself is a legal judgement and belongs to a person,
+not to a commit. · **Date drafted:** 2026-09-05
+
+**Context.** `CONFIRMED` attribution requires a curated set of exchange hot-wallet addresses
+(FR-71, [MVP_SCOPE.md §6](MVP_SCOPE.md)). The research in
+[research/OQ-08-tron-label-coverage.md](research/OQ-08-tron-label-coverage.md) found exactly one
+substantive public TRON exchange-label set — Dune's `spellbook`, 151 addresses across 30
+exchanges — and its **BSL 1.1 Additional Use Grant excludes our use case**: TraceFall is an
+offering that lets third parties access data-based insights. Every other candidate is worse:
+unknown licence, no licence at all, or Etherscan-derived, which our own
+[DATA_SOURCES.md §1](DATA_SOURCES.md) already rules out.
+
+**Options.**
+1. Ingest the Dune file anyway. Fast, and squarely inside what the grant excludes.
+2. Treat the file as a **lead list** — a set of addresses to *look at* — and establish each
+   label independently from TronGrid observation and first-party or second-source corroboration,
+   recording *that* as the provenance.
+3. From-scratch generation with no lead list at all: seed from first-party exchange disclosures,
+   walk counterparties on TronGrid, inspect high-degree nodes. Roughly one extra working day and
+   thinner coverage.
+4. Ship with no exchange labels. `CONFIRMED` then means sanctions only, and every deposit
+   address resolves to "a deposit address for an unidentified service".
+
+**Proposed:** option 2, with option 3 as the fallback for any address option 2 cannot
+corroborate.
+
+**Why.** A blockchain address and the identity of its operator are *facts*, and facts are not
+copyrightable; the BSL covers Dune's compilation, not the underlying reality. Reading a
+compilation to decide which addresses to examine, then establishing each label from independent
+observation, does not redistribute the compilation. **This reasoning is a judgement call, not a
+settled question** — which is exactly why it needs a signature rather than a commit message.
+
+**What this decision binds us to, if signed.**
+- The Dune file is **never** ingested, never committed, and never cited as provenance.
+- TronScan is a **human verification aid**, never an ingestion source — and not even that until
+  its terms of service have been read in a browser and the finding recorded here. The terms sit
+  behind a client-side route that returns 403 to every automated fetch attempted so far.
+- `label_sources` records the URLs actually consulted, the observation date, and the role we
+  assigned. Never "imported from Dune".
+- Every address is base58check-validated on ingest. A 6% invalid rate was measured in the best
+  available source; this is already enforced in `labels/loader.py`.
+- **Role is assigned by us from observed behaviour** — hot, collection, or cold — never carried
+  over from a source. The best public source demonstrably labels cold wallets as hot, and the
+  deposit-address inference sweeps *to* hot and collection wallets. A cold wallet in that
+  position produces a confident wrong answer.
+- Any address with a single source, or with sources that disagree, is `PROBABLE` at best.
+
+**If the signer declines**, option 3 applies and costs about a day, or option 4 applies and the
+demo has no exchange answer. Both are acceptable outcomes of saying no; ingesting under an
+excluded grant is not.
+
+**Signed by:** _______________  **Date:** _______
