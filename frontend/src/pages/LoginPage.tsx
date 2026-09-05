@@ -82,7 +82,8 @@ export function LoginPage() {
       </Card>
 
       <p className="text-xs text-[var(--muted)]">
-        Sessions are held in memory only. Reloading this tab signs you out.
+        Your access token is held in memory only; the refresh cookie that survives a reload
+        is httpOnly, so no script on this page can read it.
       </p>
     </main>
   )

@@ -5,13 +5,13 @@
 Smart India Hackathon 2026 · Problem Statement **SIH26183** · Ministry of Home Affairs ·
 Blockchain & Cybersecurity
 
-> ### Status: Phase 3 complete, frontend underway
-> The backend authenticates, manages cases and suspect addresses, and **retrieves real
-> blockchain data** from TRON and Ethereum with caching, rate limiting, retry, failover and
-> hashed evidence capture. A committed fixture cache replays it all offline. The investigator
-> UI covers login, dashboard, case intake and analysis progress.
-> **Nothing is traced, attributed or scored yet.** See
-> [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
+> ### Status: the product runs, end to end, offline
+> `docker compose up` brings up five containers. An investigator signs in, enters a suspect
+> address, and the pipeline retrieves, normalizes, traces, builds the graph, detects patterns,
+> attributes entities and scores risk — then produces a hash-verified PDF for the case file.
+> 506 backend tests, 47 frontend tests and 5 browser end-to-end tests against the running
+> stack. Only **Phase 15 — demo hardening** remains; the optional ML classifier (Phase 9) is
+> deliberately not built. See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 
 ---
 
@@ -60,7 +60,7 @@ system follows every branch, not just the two an analyst has patience for.
 | **Three-tier attribution** | `CONFIRMED` / `PROBABLE` / `UNATTRIBUTED`, never collapsed, enforced by a database constraint |
 | **Pattern detection** | Fan-out, fan-in, rapid layering, peel chains, dormancy bursts, structuring — each disclosing its own false-positive modes |
 | **Transparent risk scoring** | 0–100 with every contributing signal, its raw value, weight, and points shown |
-| **Interactive graph** | Hierarchical fund-flow visualisation with a chronological timeline scrubber |
+| **Interactive graph** | Hierarchical fund-flow visualisation, with a text address list carrying the same information |
 | **Investigation reports** | PDF with evidence appendix, content hash, and explicit limitations |
 | **Evidence chain** | Every raw API response stored immutably with SHA-256 and retrieval timestamp |
 
@@ -93,14 +93,16 @@ A **modular monolith with an async worker** — chosen because the pipeline take
 against rate-limited APIs, and because microservices would buy scaling we do not need at the
 cost of a demo that fails when any container misbehaves (ADR-002).
 
-## Planned stack
+## Stack
 
-**Backend** Python 3.12 · FastAPI · SQLAlchemy · Alembic · NetworkX · LightGBM · ReportLab
+**Backend** Python 3.12 · FastAPI · SQLAlchemy · Alembic · NetworkX · ReportLab
 **Frontend** React 18 · TypeScript · Vite · Tailwind · Cytoscape.js · TanStack Query
 **Data** PostgreSQL 16 · Redis 7
 **Chains (MVP)** TRON and Ethereum, USDT-first — chosen because USDT-TRC20 is where Indian
 crypto fraud money actually goes (ADR-001)
-**Deployment** Docker Compose
+**Deployment** Docker Compose behind nginx
+**Not used** No ML model ships. The deposit-address classifier (Phase 9) was optional and cut;
+the shipped heuristic is deterministic and inspectable ([AI_ML_STRATEGY](docs/AI_ML_STRATEGY.md))
 
 ## Documentation
 
@@ -119,33 +121,40 @@ Contributors and future Claude Code sessions: start with [CLAUDE.md](CLAUDE.md).
 
 ```sh
 cp .env.example .env
-./scripts/generate-secret.sh >> .env
-docker compose up -d          # api · worker · web · postgres · redis
+./scripts/generate-secret.sh >> .env                      # writes SECRET_KEY
+docker compose up -d                                      # api · worker · web · postgres · redis
+docker compose exec api alembic upgrade head
+docker compose exec api python -m app.cli load-labels
+docker compose exec api python -m app.cli create-admin    # interactive; no seeded credentials
 open http://localhost
 ```
 
-`LIVE_MODE=false` is the default, so a fresh clone needs no API keys.
-
-Migrations and the first admin account:
-
-```sh
-docker compose exec api alembic upgrade head
-docker compose exec api python -m app.cli create-admin   # interactive; no seeded credentials
-```
+Seven commands, one of them interactive, all of them verified. `LIVE_MODE=false` is the
+default, so a fresh clone needs no API keys and makes no network calls — it replays the
+committed fixture cache, and every screen says so. Detail:
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 Backend checks: `cd backend && pip install -e '.[dev]' && ruff check . && mypy app && pytest`
 Frontend checks: `cd frontend && npm ci && npm run lint && npm run typecheck && npm test`
+Browser end-to-end, against a running stack: `cd frontend && npm run e2e`
 
-## Current phase
+## What is measured, not asserted
 
-**Phase 3 — Blockchain ingestion. Complete.** TRON and Ethereum adapters, pagination, a
-Redis-backed per-method rate limiter, jittered retry, Blockscout → Etherscan failover, request
-coalescing, hashed evidence capture, and a committed fixture cache that runs the whole path with
-no network. **Phase 10 (frontend) is partially built** — login, dashboard, case and address
-intake, analysis progress. 147 backend and 32 frontend tests pass.
-
-Next: Phase 4 (transaction normalization — raw payloads become the canonical `Transfer`
-model).
+- **Deposit-address heuristic: precision 0.989, recall 0.186** against Binance's own published
+  deposit addresses, with the exchange's hot and cold wallets as deliberately hard negatives
+  ([research note](docs/research/OQ-09-deposit-heuristic-precision.md)). The recall figure is
+  the honest one: roughly four in five real deposit addresses have too little history to
+  classify, and those are reported `UNATTRIBUTED` with a reason. **The precision must never be
+  quoted without the recall beside it.**
+- **`CONFIRMED` attribution rests on first-party data.** 405 OFAC-designated addresses and 17
+  Binance TRON wallets taken from Binance's own proof-of-reserves disclosure — the operator
+  naming its own wallets. No third-party explorer scrape is used, and
+  [ADR-018](docs/DECISIONS.md) records why one was rejected.
+- **Provider rate limits, measured:** TronGrid without a key sustains about 0.5 req/s per RPC
+  method ([research note](docs/research/OQ-01-provider-rate-limits.md)). The ninety-second
+  target holds against the fixture cache, not a cold live trace.
+- **Regression locks:** a golden case pins every number the pipeline produces, and the
+  Playwright suite guards what only a real browser reaches.
 
 ## A note on honesty
 

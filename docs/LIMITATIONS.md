@@ -284,7 +284,9 @@ sample, and performance on them does not represent average-case performance.
 | "Produces an investigative risk score with a full signal breakdown" | "Calculates fraud probability" |
 | "Reduces a multi-hour manual trace to about ninety seconds" | "Solves crypto fraud" |
 | "Generates an investigation report for the case file" | "Generates court-admissible evidence" |
-| "Uses ML for one specific classification task" | "AI-powered fraud detection platform" |
+| "Every conclusion is deterministic and inspectable — no model ships" | "AI-powered fraud detection platform" |
+| "Deposit-address precision 0.989 on Binance's own published addresses — at recall 0.186, so four in five are reported unidentified" | "98.9% accurate" |
+| "About ninety seconds against the cached snapshot the demo runs on" | "Ninety seconds for any address, live" |
 | "Designed for integration with systems like NCRP" | "Integrated with NCRP" |
 | "Shows where on-chain tracing ends and legal process must begin" | "Recovers stolen funds" |
 
