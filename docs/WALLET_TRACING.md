@@ -35,6 +35,13 @@ distinguishable and old traces stay explicable (ADR-004).
 
 ## 2. Inputs
 
+**A trace follows one asset.** Raw amounts are integers at each asset's own precision, so
+40,000 USDT (6 decimals, 4e10 raw) and 1 ETH (18 decimals, 1e18 raw) are not comparable
+numbers; pooling them into a single taint ratio produces a confident, meaningless answer. The
+victim sent one asset, and that is the asset we follow. A swap into another asset therefore
+ends the trace rather than continuing through it — see ADR-017 and
+[LIMITATIONS.md](LIMITATIONS.md).
+
 | Parameter | Default | Max | Purpose |
 |---|---|---|---|
 | `root_address` | — | — | The victim-reported suspect address |
@@ -86,8 +93,9 @@ for depth in 0 .. max_depth-1:
         if outbound is empty:
             terminate(node, NO_OUTFLOW); continue
 
-        balance_at_node = tainted_in[node] + untainted_in[node]
-        taint_ratio     = tainted_in[node] / balance_at_node        # the haircut
+        total_in  = sum of all inflow to node (tainted + untainted)
+        total_out = sum of eligible outflow from node
+        taint_ratio = tainted_in[node] / max(total_in, total_out)   # the haircut
 
         aggregate outbound by (counterparty, asset)
         keep top `fanout_cap` by outbound value
@@ -114,8 +122,17 @@ any node still in frontier at max_depth → terminate(node, MAX_DEPTH)
 1. **Arrive** at an address carrying an attributed tainted amount.
 2. **Ask what it is.** Known exchange, mixer, or bridge? Then this is a terminal node and the
    trace has succeeded — it found where the money left the traceable chain. Record and stop.
-3. **Compute the haircut.** What fraction of everything that flowed into this address is
-   tainted? That fraction applies to everything that flows out.
+3. **Compute the haircut.** What fraction of the value leaving this address is
+   attributed to the victim?
+
+   The denominator is `max(total_in, total_out)`, **not inflow alone**. An address can send
+   out more than the inflow we observe — it may have held a balance before the victim paid,
+   or its earlier history may fall outside the analysis window. Dividing by inflow alone
+   would then attribute more tainted value than ever arrived, letting the trace create money
+   out of nothing. Taking the larger of the two caps total onward attribution at
+   `tainted_in` in every case, and reduces to the textbook haircut whenever outflow does not
+   exceed inflow. This correction was forced by the accounting invariant during
+   implementation.
 4. **Look at the outflows** after the tainted money arrived, within the window, above dust.
 5. **Aggregate** them per counterparty and asset — twenty transfers to one address is one edge.
 6. **Rank and cap.** Follow the top 20 by value. Record the rest as pruned so nothing is
@@ -227,13 +244,16 @@ its endpoints.
 ## 8. Path ranking (FR-48)
 
 The graph shows everything; investigators need the three paths that matter. Paths from root to
-each terminal node are ranked by:
+each terminal node are ranked by **attributed value, with a modest multiplier for actionable
+endpoints** (a service boundary, or funds that have not moved).
 
-1. **Attributed value** — how much of the victim's money took this path. Dominant factor.
-2. **Terminal quality** — a path ending at an attributed exchange outranks one ending at
-   `MAX_DEPTH`, because it is actionable.
-3. **Directness** — fewer hops, all else equal.
-4. **Recency** — recent movement suggests funds may still be reachable.
+As implemented: `score = attributed_value x 1.5 if actionable else attributed_value`, then
+fewer hops as a tie-break.
+
+The multiplier is deliberately small. Ranking by terminal quality first — the obvious reading of
+the original design — makes a 20,000 peel outrank a 900,000 main flow, which a test caught
+immediately. Value has to dominate; actionability lifts a slightly smaller path above a larger
+dead end, and no further.
 
 The top three are surfaced as "key findings" and go into the report by default.
 

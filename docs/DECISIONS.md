@@ -388,3 +388,34 @@ the same records. Window filtering therefore has to happen during normalization,
 it belongs anyway. This is acceptable because fixture mode exists for demos and tests, both of
 which want determinism over query fidelity; live mode is unaffected. A test asserts the two
 windows return identical data, so the behaviour is pinned rather than accidental.
+
+---
+
+## ADR-017 — A trace follows a single asset
+
+**Status:** Accepted · **Date:** 2026-09-05
+
+**Context.** The tracing engine attributes a share of an address's outflow to the victim. The
+first implementation pooled every asset into one taint ratio, summing `amount_raw` across
+assets.
+
+**The problem that surfaced during implementation.** Raw amounts are integers at each asset's
+own precision. 40,000 USDT is 4e10 raw; 1 ETH is 1e18 raw. Adding them is not a large number —
+it is a meaningless one, and it would have produced a confident taint ratio built on nonsense.
+
+**Options.** Convert everything to a common unit (needs a price for every asset at every
+moment — we do not have that, and `LIMITATIONS.md` says prices are approximate) · track taint
+per `(address, asset)` pair (correct, but the node identity in the graph stops being an address,
+which complicates every downstream consumer) · **scope each trace to one asset**.
+
+**Chosen:** one asset per trace, taken from the victim's anchored transfer.
+
+**Why.** It matches the investigative question exactly — "the victim sent 40,000 USDT, where did
+that USDT go?" — and it removes the incomparable-units problem entirely rather than papering
+over it. It also keeps a graph node meaning one address, which every other engine depends on.
+
+**Trade-offs, and this one is real.** A swap — USDT to TRX, or a bridge into another asset —
+**ends the trace** instead of continuing through it. That is a genuine blind spot, not a
+temporary limitation, and it belongs in `LIMITATIONS.md` alongside mixers and bridges. Tracing
+through a swap needs the per-asset model, which is the natural upgrade if it turns out to
+matter. Running a second trace from the swap output is the manual workaround.

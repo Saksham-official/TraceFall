@@ -74,6 +74,15 @@ separate chain analysis is needed), depth limits, and value thresholds.
 splits into a hundred tiny amounts can push value below the threshold. We report what was
 pruned and how much, but we did not follow it.
 
+### A swap ends the trace
+
+A trace follows one asset (ADR-017). If funds are converted — USDT to TRX, or into any other
+asset — the trace stops at the conversion rather than following the new asset. We name the swap
+and the address, and an investigator can start a second trace from there, but it is manual.
+
+This is a real blind spot and a plausible evasion. It sits alongside mixers and bridges as a
+place where on-chain tracing hands off to human work.
+
 ### The fan-out cap can miss things
 
 We follow the top 20 outbound branches per node by value. Branch 21 could matter. It is
