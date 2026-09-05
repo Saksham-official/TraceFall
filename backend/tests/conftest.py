@@ -11,6 +11,8 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-used-outside-tests-0123456789")
+# Two suites running against one database will deadlock on the TRUNCATE in
+# clean_database. Set TEST_DATABASE_URL (and TEST_REDIS_URL) to run concurrently.
 os.environ["DATABASE_URL"] = os.environ.get(
     "TEST_DATABASE_URL", "postgresql+asyncpg://tracefall:tracefall@127.0.0.1:5432/tracefall_test"
 )
@@ -31,7 +33,8 @@ from app.orchestrator import queue  # noqa: E402
 
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 
-# Reference data is created by migration and shared by every test.
+# Reference data created by migration. `assets` is preserved for its seeded native rows
+# only; token rows are cleared in clean_database.
 PRESERVED_TABLES = {"alembic_version", "chains", "assets"}
 
 
@@ -58,6 +61,10 @@ async def clean_database() -> AsyncIterator[None]:
         targets = [t for (t,) in rows if t not in PRESERVED_TABLES]
         # TRUNCATE is statement-level, so it bypasses the append-only row triggers.
         await conn.execute(text(f"TRUNCATE {', '.join(targets)} RESTART IDENTITY CASCADE"))
+        # Only the seeded native assets are reference data. A token row created by one
+        # test would otherwise leak into every later test — including the ones asserting
+        # that an unknown token stays unknown.
+        await conn.execute(text("DELETE FROM assets WHERE is_native = false"))
     await queue.get_client().flushdb()
     yield
 
