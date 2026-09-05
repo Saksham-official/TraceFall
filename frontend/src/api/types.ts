@@ -197,6 +197,9 @@ export interface Degradation {
 export interface Analysis {
   id: string
   case_id: string
+  root_address_id: number
+  /** So a screen can name the address being analysed without a second request. */
+  root_address: string | null
   status: AnalysisStatus
   stage: AnalysisStage | null
   progress_pct: number
@@ -276,3 +279,130 @@ export type Attribution =
       evidence?: AttributionEvidence[]
       explanation: string
     }
+
+// --- analysis results (API_SPEC §6) ------------------------------------------
+// The shapes the pipeline now actually produces. Raw amounts cross the wire as
+// strings: a JSON number cannot hold an 18-decimal amount exactly, and an amount
+// that loses precision in transport is a wrong number in a police report.
+
+export interface GraphNode {
+  address: string
+  depth: number | null
+  taint_share: number | null
+  tainted_amount_raw: string
+  is_root: boolean
+  is_terminal: boolean
+  termination_reason: string | null
+  attribution_tier: AttributionTier | null
+  entity_name: string | null
+  entity_type: EntityType | null
+  attribution_confidence: number | null
+  first_reached_at: string | null
+  omitted_successors: number
+  pruned_branches: { to: string; reason: string; tainted_amount_raw: string }[]
+}
+
+export interface GraphEdge {
+  from: string
+  to: string
+  asset_symbol: string | null
+  decimals: number | null
+  total_amount_raw: string
+  tainted_amount_raw: string
+  transfer_count: number
+  first_transfer_at: string | null
+  last_transfer_at: string | null
+  tx_hashes: string[]
+}
+
+export interface GraphMeasures {
+  chokepoints: { address: string; betweenness: number }[]
+  components: number
+  cycles: string[][]
+  highest_value_path: string[]
+}
+
+export interface GraphPayload {
+  root: string | null
+  anchor_tx_hash: string | null
+  asset_key: string | null
+  node_count: number
+  edge_count: number
+  total_nodes: number
+  /** Always present, and always displayed. Hiding half a fund flow is unacceptable. */
+  truncated: boolean
+  omitted_node_count: number
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  measures: GraphMeasures
+  pruned_branches: { from: string; to: string; reason: string; tainted_amount_raw: string }[]
+  unavailable_addresses: { address: string; reason: string }[]
+}
+
+export interface AttributionRow {
+  address: string
+  tier: AttributionTier
+  entity_name: string | null
+  entity_type: EntityType
+  /** Null for CONFIRMED: a confirmed claim is not a probability. */
+  confidence: number | null
+  method: AttributionMethod
+  evidence: { type?: string; detail?: unknown; [key: string]: unknown }[]
+  engine_version: string
+  computed_at: string
+}
+
+export interface PatternRow {
+  pattern_type: string
+  severity: 'LOW' | 'MEDIUM' | 'HIGH'
+  subject_address: string
+  involved_addresses: string[]
+  trigger_tx_hashes: string[]
+  metrics: Record<string, unknown>
+  explanation: string
+  /** Mandatory. A pattern shown without it will be read as a conclusion. */
+  false_positive_note: string
+  detector_version: string
+}
+
+export interface RiskSignal {
+  name: string
+  weight: number
+  points: number
+  raw_value: unknown
+  description: string
+  evidence_tx: string[]
+}
+
+export interface RiskRow {
+  address: string
+  score: number
+  band: RiskBand
+  /** Reported beside the score, never folded into it. */
+  confidence: number
+  signals: RiskSignal[]
+  not_evaluated: { name: string; reason: string }[]
+  config_version: string
+  engine_version: string
+  computed_at: string
+}
+
+export interface RiskPayload {
+  root: RiskRow | null
+  nodes: RiskRow[]
+  disclaimer: string
+}
+
+export interface ReportRow {
+  id: string
+  case_id: string
+  analysis_run_id: string | null
+  report_type: 'FULL' | 'SUMMARY'
+  format: 'PDF' | 'JSON' | 'CSV'
+  content_sha256: string
+  narrative_source: 'TEMPLATE' | 'LLM'
+  generated_by: number
+  generated_at: string
+  download_url: string
+  content_verified: boolean | null
+}

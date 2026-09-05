@@ -144,16 +144,14 @@ export function AnalysisProgressPage() {
           </Button>
         )}
         <Link to={`/cases/${run.case_id}`} className="ml-auto">
-          <Button variant={active ? 'ghost' : 'primary'}>
-            {run.partial_results_available && active ? 'Partial results →' : 'Open case'}
-          </Button>
+          <Button variant="ghost">Open case</Button>
         </Link>
+        {(run.status === 'COMPLETED' || run.status === 'PARTIAL') && (
+          <Link to={`/analyses/${run.id}/investigation`}>
+            <Button>Open findings →</Button>
+          </Link>
+        )}
       </div>
-
-      <p className="text-xs text-[var(--muted)]">
-        The analysis pipeline is a stub until Phase 3 lands blockchain ingestion, so a run
-        completes immediately and produces no results yet.
-      </p>
     </div>
   )
 }

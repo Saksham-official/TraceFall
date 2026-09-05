@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { query, request } from './client'
 import type {
   Analysis,
+  AttributionRow,
   AnalysisAccepted,
   AnalysisStart,
   Case,
@@ -12,9 +13,13 @@ import type {
   CaseAddressCreate,
   CaseCreate,
   CaseStatus,
+  GraphPayload,
   Health,
   Page,
+  PatternRow,
   Priority,
+  ReportRow,
+  RiskPayload,
   TimelineEvent,
   User,
 } from './types'
@@ -132,5 +137,63 @@ export function useCancelAnalysis(runId: string) {
   return useMutation({
     mutationFn: () => request<Analysis>(`/analyses/${runId}/cancel`, { method: 'POST' }),
     onSuccess: (data) => client.setQueryData(keys.analysis(runId), data),
+  })
+}
+
+// --- analysis results ---------------------------------------------------------
+
+export const resultKeys = {
+  graph: (runId: string, maxNodes: number) => ['analysis', runId, 'graph', maxNodes] as const,
+  attributions: (runId: string) => ['analysis', runId, 'attributions'] as const,
+  patterns: (runId: string) => ['analysis', runId, 'patterns'] as const,
+  risk: (runId: string) => ['analysis', runId, 'risk'] as const,
+  reports: (caseId: string) => ['case', caseId, 'reports'] as const,
+}
+
+export function useGraph(runId: string, maxNodes = 500, enabled = true) {
+  return useQuery({
+    queryKey: resultKeys.graph(runId, maxNodes),
+    queryFn: () => request<GraphPayload>(`/analyses/${runId}/graph?max_nodes=${maxNodes}`),
+    enabled,
+  })
+}
+
+export function useAttributions(runId: string, enabled = true) {
+  return useQuery({
+    queryKey: resultKeys.attributions(runId),
+    queryFn: () => request<AttributionRow[]>(`/analyses/${runId}/attributions`),
+    enabled,
+  })
+}
+
+export function usePatterns(runId: string, enabled = true) {
+  return useQuery({
+    queryKey: resultKeys.patterns(runId),
+    queryFn: () => request<PatternRow[]>(`/analyses/${runId}/patterns`),
+    enabled,
+  })
+}
+
+export function useRisk(runId: string, enabled = true) {
+  return useQuery({
+    queryKey: resultKeys.risk(runId),
+    queryFn: () => request<RiskPayload>(`/analyses/${runId}/risk`),
+    enabled,
+  })
+}
+
+export function useReports(caseId: string) {
+  return useQuery({
+    queryKey: resultKeys.reports(caseId),
+    queryFn: () => request<ReportRow[]>(`/cases/${caseId}/reports`),
+  })
+}
+
+export function useGenerateReport(caseId: string) {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (body: { analysis_run_id: string; format?: 'PDF' | 'JSON' | 'CSV' }) =>
+      request<ReportRow>(`/cases/${caseId}/reports`, { method: 'POST', body }),
+    onSuccess: () => client.invalidateQueries({ queryKey: resultKeys.reports(caseId) }),
   })
 }

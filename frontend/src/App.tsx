@@ -7,6 +7,7 @@ import { AddressIntakePage } from './pages/AddressIntakePage'
 import { AnalysisProgressPage } from './pages/AnalysisProgressPage'
 import { CaseDetailPage } from './pages/CaseDetailPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { InvestigationPage } from './pages/InvestigationPage'
 import { LoginPage } from './pages/LoginPage'
 import { NewCasePage } from './pages/NewCasePage'
 
@@ -26,6 +27,7 @@ export function App() {
         <Route path="cases/:caseId" element={<CaseDetailPage />} />
         <Route path="cases/:caseId/address" element={<AddressIntakePage />} />
         <Route path="analyses/:runId" element={<AnalysisProgressPage />} />
+        <Route path="analyses/:runId/investigation" element={<InvestigationPage />} />
         <Route
           path="*"
           element={
