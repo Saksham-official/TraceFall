@@ -26,9 +26,13 @@ addresses:
     chain: TRON
     role: headline
     why: >
-      Traces to 24 addresses over 27 edges and reaches a second OFAC-designated address on
-      the way. A real multi-hop flow to follow, not a single hop dressed up as one. It ends
-      at MAX_DEPTH rather than at an answer, which is the honest shape of a deep trace.
+      Traces to 26 addresses over 30 edges in about seventy seconds, and reaches a second
+      OFAC-designated address on the way. A real multi-hop flow to follow, not a single hop
+      dressed up as one. It finishes PARTIAL with two branches DATA_UNAVAILABLE, and that
+      is left alone on purpose: at depth five each fixture added widens the graph and
+      exposes more frontier, because the trace runs into service addresses truncated at the
+      10,000-transfer retrieval cap. A trace with no unfollowed branches would be the
+      misleading one.
 
   - address: TWBAPzpPiZarfVsY2BLXeaLhNHurn4wkWG
     chain: TRON

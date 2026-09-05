@@ -6,6 +6,26 @@ The walkthrough, its timings, and the answers to the questions it invites.
 in [`config/demo_addresses.yaml`](../config/demo_addresses.yaml); the claims are bounded by
 [LIMITATIONS.md §13](LIMITATIONS.md). Nothing said here goes beyond what the screen shows.
 
+**Measured on the demo stack, 2026-09-06** — these are the numbers to expect, not estimates:
+
+| Address | Pipeline | Result | Graph | Attribution |
+|---|---|---|---|---|
+| `TUcjuVB6…` headline | **70 s** | PARTIAL | 26 nodes, 30 edges, 2 unavailable | 2 confirmed · 16 probable · 8 unattributed |
+| `TXoVNrqm…` quiet root | **30 s** | PARTIAL | 4 nodes, 3 edges, 1 unavailable | 1 confirmed · 2 probable · 1 unattributed |
+| `TWBAPzpP…` fan-out | **2 s** | COMPLETED | 2 nodes, 2 edges | 1 confirmed · 1 probable |
+| `TLFqEhiG…` funds not moved | **2 s** | COMPLETED | 2 nodes, 1 edge | 1 confirmed · 1 unattributed |
+
+**PARTIAL is not a failure and must not be apologised for.** It means a branch ended in
+`DATA_UNAVAILABLE` — a hop the snapshot does not hold — and the run says so rather than
+quietly reporting a smaller fund flow. **Point at it; it is the honest-degradation moment
+the product is built around.**
+
+The two unavailable branches on the headline case are deliberate and will not be captured
+away. Every fixture added at depth five widens the graph and exposes two more edges of
+frontier, because the trace runs into service addresses truncated at the 10,000-transfer
+retrieval cap. A real trace always has branches it could not follow; a demo where every
+branch resolves would be the misleading one.
+
 ---
 
 ## 0. Before the room — pre-flight
@@ -78,11 +98,12 @@ Point at the **cached snapshot** banner, which is on every screen:
 The progress page names each stage as it runs: retrieval, normalization, tracing, graph,
 patterns, attribution, risk.
 
-> Seven stages, about ninety seconds against this cached snapshot. Live, against a
-> rate-limited free API tier, it is slower — TronGrid gives us half a request per second
-> per method without a key, and we measured that rather than guessing.
+> Seven stages. This one takes about seventy seconds against the cached snapshot, because
+> the money runs into addresses with ten and twenty thousand transfers apiece — and that
+> volume is itself the finding. The quiet addresses finish in two.
 
-**Do not say** "ninety seconds for any address, live". See §7.
+**Do not say** "ninety seconds for any address, live". See §7. NFR-01's budget is 120
+seconds from the fixture cache, and the headline case sits inside it at 69.
 
 ---
 
@@ -118,6 +139,14 @@ Expand one row so the evidence is on screen: the source, its date, the transacti
 > Fan-out, fan-in, rapid layering, peel chains, dormancy bursts, structuring. Each finding
 > carries **its own false-positive note** — the detector says how it can be wrong, in the
 > same panel. Registering a detector without that note raises an error; it is enforced.
+
+The headline case produces about sixty findings across twenty-four addresses, most of them
+fan-in and fan-out on the service addresses. Say so before anyone counts them:
+
+> Most of these are on high-volume service addresses, where collecting from thousands of
+> senders is the normal behaviour — and each finding says exactly that in its own
+> false-positive note. The detectors report shapes. Deciding which shapes matter is the
+> investigator's job, and the note is there so they can.
 
 ### Risk (25 s)
 > Nought to a hundred, and every signal that contributed is listed with its raw value, its
