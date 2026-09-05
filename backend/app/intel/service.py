@@ -133,7 +133,6 @@ async def _persist(
         if address not in address_ids:
             continue
         rows_for_address = transfers[address]
-        times = sorted(t.block_time for t in rows_for_address)
         rows.append(
             {
                 "address_id": address_ids[address],
@@ -145,8 +144,8 @@ async def _persist(
                 "total_in_raw": Decimal(feature.total_in_raw),
                 "total_out_raw": Decimal(feature.total_out_raw),
                 "balance_raw": Decimal(feature.total_in_raw - feature.total_out_raw),
-                "age_days": (times[-1] - times[0]).days,
-                "active_days": len({t.date() for t in times}),
+                "age_days": feature.age_days,
+                "active_days": feature.active_days,
                 "median_dwell_seconds": feature.median_dwell_seconds,
                 "sweep_ratio": (
                     None if feature.sweep_ratio is None else _quantize(feature.sweep_ratio)

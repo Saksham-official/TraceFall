@@ -1,0 +1,153 @@
+# Risk signal catalogue and weights.
+#
+# Weights are the MAXIMUM points a signal can contribute. They live here rather than in
+# code (FR-85) and the version below is recorded in every assessment (FR-86), so a score
+# generated months ago stays explicable after these numbers change.
+#
+# These weights are EXPERT-REASONED, NOT EMPIRICALLY CALIBRATED. Validating them would
+# need a large labelled dataset of addresses with adjudicated outcomes, which does not
+# exist publicly and which this project will not have. LIMITATIONS.md says so plainly.
+# They are set from investigative reasoning and must not be tuned to make a demo case
+# look dramatic — the first question anyone asks is how the weights were chosen.
+#
+# Group maxima sum to 120 against a ceiling of 100, so reaching 100 needs strong signals
+# across several groups rather than one loud one.
+#
+# `group` is not decoration. Groups B and C describe *behaviour*, and an address
+# confirmed as an exchange or a payment processor exhibits all of that behaviour by
+# design — enormous fan-in and fan-out, fast turnaround, near-zero retention. Scoring a
+# confirmed service on those markers flags the system's own success condition as
+# suspicious, so they are reported as not-evaluated for such an address. Groups A and D
+# still apply: a service that itself touches a sanctioned address is a real finding.
+
+version: risk-weights-v1.0
+
+bands:
+  LOW: [0, 24]
+  MEDIUM: [25, 49]
+  HIGH: [50, 74]
+  CRITICAL: [75, 100]
+
+# How much each input contributes to the separately-reported confidence. Never folded
+# into the score: "probably very bad, but we are working from partial data" and "we
+# looked thoroughly and it is fine" must not collapse to the same number (FR-83).
+confidence:
+  data_completeness: 0.4
+  attribution_quality: 0.3
+  trace_completeness: 0.3
+
+signals:
+  # --- Group A — direct risk contact (max 45) -------------------------------------
+  # The strongest signals, because they rest on CONFIRMED dataset matches: observed
+  # fact rather than inference. Each is scaled by hop distance — an address that sends
+  # to a mixer two hops away is implicated; one sitting three hops downstream is not.
+  sanctioned_contact:
+    group: A
+    weight: 25
+    hop_decay: 0.2
+    enabled: true
+  mixer_interaction:
+    group: A
+    weight: 20
+    hop_decay: 0.2
+    enabled: true
+  darknet_contact:
+    group: A
+    weight: 15
+    hop_decay: 0.2
+    enabled: true
+  high_risk_jurisdiction_vasp:
+    group: A
+    weight: 8
+    enabled: true
+
+  # --- Group B — laundering behaviour (max 40) ------------------------------------
+  rapid_transfer:
+    group: B
+    weight: 12
+    full_points_below_seconds: 60
+    zero_points_above_seconds: 86400
+    enabled: true
+  fan_out:
+    group: B
+    weight: 10
+    threshold: 5
+    saturation: 50
+    enabled: true
+  fan_in:
+    group: B
+    weight: 8
+    threshold: 5
+    saturation: 50
+    enabled: true
+  peel_chain:
+    group: B
+    weight: 10
+    enabled: true
+  structuring:
+    group: B
+    weight: 8
+    enabled: true
+  chain_hopping:
+    group: B
+    weight: 8
+    enabled: true
+  dormancy_burst:
+    group: B
+    weight: 6
+    enabled: true
+
+  # --- Group C — address characteristics (max 20) ---------------------------------
+  wallet_age:
+    group: C
+    weight: 8
+    full_points_below_days: 7
+    zero_points_above_days: 180
+    enabled: true
+  pass_through_ratio:
+    group: C
+    weight: 8
+    max_retention: 0.05
+    enabled: true
+  velocity:
+    group: C
+    weight: 6
+    threshold: 1
+    saturation: 100
+    enabled: true
+  single_use_pattern:
+    group: C
+    weight: 5
+    enabled: true
+  no_legitimate_activity:
+    group: C
+    weight: 5
+    enabled: true
+
+  # --- Group D — case context (max 15) --------------------------------------------
+  cross_case_match:
+    group: D
+    weight: 10
+    enabled: true
+  victim_count:
+    group: D
+    weight: 8
+    threshold: 1
+    saturation: 20
+    enabled: true
+  value_magnitude:
+    group: D
+    weight: 5
+    # Raw units of the traced asset. 1e6 is 1 USDT at 6 decimals; saturation is set so
+    # a large Indian fraud case reaches full points without a small one scoring zero.
+    threshold: 1000000
+    saturation: 1000000000000
+    enabled: true
+
+# Deliberately absent, and why:
+#
+# exchange_interaction — reaching an exchange is the system's own success condition and
+#   the expected end of a cash-out. Scoring it as risk would mark every successful trace
+#   as suspicious and penalise the legitimate industry. It is reported as a finding.
+# any jurisdiction-of-user or nationality proxy — not available, and not appropriate.
+# total balance held — wealth is not risk.

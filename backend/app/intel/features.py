@@ -47,6 +47,10 @@ class AddressFeatures:
     total_in_raw: int
     total_out_raw: int
     distinct_assets: int
+    # Days between first and last activity, and days on which it was active at all.
+    # None when there is nothing to measure them from.
+    age_days: int | None
+    active_days: int | None
 
     # None where the address gives no basis to compute it. None is not zero: "we could
     # not measure this" and "we measured it as nothing" lead to different findings.
@@ -90,6 +94,8 @@ class AddressFeatures:
             "total_in_raw": str(self.total_in_raw),
             "total_out_raw": str(self.total_out_raw),
             "distinct_assets": self.distinct_assets,
+            "age_days": self.age_days,
+            "active_days": self.active_days,
             "sweep_consistency": _as_float(self.sweep_consistency),
             "sweep_ratio": _as_float(self.sweep_ratio),
             "balance_retention": _as_float(self.balance_retention),
@@ -139,6 +145,8 @@ def extract(
         total_in_raw=total_in,
         total_out_raw=total_out,
         distinct_assets=len({t.asset_key for t in moved}),
+        age_days=_age_days(scoped),
+        active_days=len({t.block_time.date() for t in scoped}) or None,
         sweep_consistency=_sweep_consistency(outbound, total_out),
         sweep_ratio=_sweep_ratio(inbound, outbound),
         balance_retention=_balance_retention(total_in, total_out),
@@ -147,6 +155,13 @@ def extract(
         initiates_transfers=bool(outbound)
         and (not inbound or outbound[0].block_time < inbound[0].block_time),
     )
+
+
+def _age_days(transfers: list[NormalizedTransfer]) -> int | None:
+    if not transfers:
+        return None
+    times = [t.block_time for t in transfers]
+    return (max(times) - min(times)).days
 
 
 def dominant_asset(transfers: list[NormalizedTransfer], address: str) -> str | None:
