@@ -1,9 +1,9 @@
 """Analysis queue worker.
 
-Runs the analysis pipeline stage by stage. Phase 3 implements RETRIEVAL; the remaining
-stages land in later phases. Each stage declares whether it is required or degradable:
-a degradable stage that fails records why and lets the run continue as PARTIAL, because
-a partial answer with its limits stated is worth more than no answer.
+Runs the analysis pipeline stage by stage. RETRIEVAL and NORMALIZATION are implemented;
+the remaining stages land in later phases. Each stage declares whether it is required or
+degradable: a degradable stage that fails records why and lets the run continue as
+PARTIAL, because a partial answer with its limits stated is worth more than no answer.
 """
 
 import asyncio
@@ -26,6 +26,8 @@ from app.db.models.enums import AnalysisStage, AnalysisStatus
 from app.db.session import SessionFactory
 from app.ingestion import service
 from app.ingestion.fixtures import FixtureMissing
+from app.ingestion.service import AddressData
+from app.normalize import service as normalize
 from app.orchestrator import queue
 
 log = logging.getLogger("worker")
@@ -46,7 +48,7 @@ def is_alive() -> bool:
         return False
 
 
-async def _retrieve(run: AnalysisRun, session: AsyncSession) -> dict[str, object]:
+async def _retrieve(run: AnalysisRun, session: AsyncSession) -> AddressData:
     """RETRIEVAL stage — required. Without data there is nothing to analyse."""
     address = await session.get(Address, run.root_address_id)
     if address is None:
@@ -54,23 +56,16 @@ async def _retrieve(run: AnalysisRun, session: AsyncSession) -> dict[str, object
     chain = await session.get(Chain, address.chain_id)
     if chain is None:
         raise RuntimeError(f"address {address.id} references a missing chain")
-    window_days = int(run.params.get("time_window_days", 90))
+    window = TimeWindow.last_days(int(run.params.get("time_window_days", 90)))
 
-    data = await service.retrieve_address(
+    return await service.retrieve_address(
         chain.code,
         address.address,
-        TimeWindow.last_days(window_days),
+        window,
         session=session,
         case_id=run.case_id,
         analysis_run_id=run.id,
     )
-    return {
-        "records": data.record_count,
-        "complete": data.complete,
-        "truncation": data.truncation_reasons,
-        "is_fixture": data.is_fixture,
-        "degradations": data.degradations,
-    }
 
 
 async def _run_pipeline(run_id: uuid.UUID) -> None:
@@ -93,7 +88,7 @@ async def _run_pipeline(run_id: uuid.UUID) -> None:
             return
         degradations: list[dict[str, object]] = []
         try:
-            summary = await _retrieve(run, session)
+            data = await _retrieve(run, session)
         except FixtureMissing as exc:
             # An operator error, not a provider failure: fail loudly rather than
             # reporting an address with no activity.
@@ -104,10 +99,30 @@ async def _run_pipeline(run_id: uuid.UUID) -> None:
             log.error("analysis run %s has no fixture: %s", run_id, exc)
             return
 
+        summary: dict[str, object] = {
+            "records": data.record_count,
+            "complete": data.complete,
+            "truncation": data.truncation_reasons,
+            "is_fixture": data.is_fixture,
+            "degradations": data.degradations,
+        }
+        run.stage = AnalysisStage.NORMALIZATION
+        run.progress_pct = 50
+        await session.commit()
+
+        # NORMALIZATION is required, not degradable: unnormalized data is not analysable,
+        # so a failure here fails the run rather than producing a smaller answer.
+        normalized = await normalize.normalize_address_data(session, data)
+
         run.progress_pct = 100
         run.stage = None
         run.completed_at = datetime.now(UTC)
-        run.engine_versions = {"ingestion": "1.0.0", "retrieval_summary": summary}
+        run.engine_versions = {
+            "ingestion": "1.0.0",
+            "normalize": "1.0.0",
+            "retrieval_summary": summary,
+            "normalization_summary": normalized.as_dict(),
+        }
         if summary["degradations"] or not summary["complete"]:
             degradations.append({"stage": AnalysisStage.RETRIEVAL, "detail": summary})
             run.status = AnalysisStatus.PARTIAL
@@ -115,7 +130,7 @@ async def _run_pipeline(run_id: uuid.UUID) -> None:
             run.status = AnalysisStatus.COMPLETED
         run.degradations = degradations
         await session.commit()
-    log.info("analysis run %s finished: %s", run_id, summary)
+    log.info("analysis run %s finished: %s, %s", run_id, summary, normalized.as_dict())
 
 
 async def _reclaim_stale_runs() -> None:
