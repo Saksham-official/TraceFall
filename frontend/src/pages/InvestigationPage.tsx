@@ -33,6 +33,8 @@ import { download } from '../api/client'
 import { truncateAddress } from '../lib/format'
 
 const MAX_NODES = 500
+// Ascending, so `indexOf` orders by how much a finding should interrupt the reader.
+const SEVERITY_ORDER = ['LOW', 'MEDIUM', 'HIGH'] as const
 
 export function InvestigationPage() {
   const { runId = '' } = useParams()
@@ -173,6 +175,10 @@ function Overview({
 }) {
   const confirmed = attributions.filter((a) => a.tier === 'CONFIRMED' && a.entity_name)
   const probable = attributions.filter((a) => a.tier === 'PROBABLE' && a.entity_name)
+  // Most severe first, so the five shown are the five worth reading.
+  const headlinePatterns = [...patterns]
+    .sort((a, b) => SEVERITY_ORDER.indexOf(b.severity) - SEVERITY_ORDER.indexOf(a.severity))
+    .slice(0, 5)
 
   return (
     <div className="space-y-4">
@@ -223,13 +229,26 @@ function Overview({
         {patterns.length === 0 ? (
           <p className="text-sm text-[var(--muted)]">None detected in this trace.</p>
         ) : (
-          <ul className="space-y-1 text-sm">
-            {patterns.map((pattern, index) => (
-              <li key={`${pattern.pattern_type}-${index}`}>
-                <strong>{pattern.pattern_type}</strong> — {pattern.explanation}
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="space-y-1 text-sm">
+              {headlinePatterns.map((pattern, index) => (
+                <li key={`${pattern.pattern_type}-${index}`}>
+                  <strong>{pattern.pattern_type}</strong> — {pattern.explanation}
+                </li>
+              ))}
+            </ul>
+            {patterns.length > headlinePatterns.length && (
+              // A trace through service addresses produces dozens of findings, and an
+              // overview that lists all of them is not an overview. The count is shown so
+              // nothing looks hidden; the Patterns tab has every one with its
+              // false-positive note.
+              <p className="mt-2 text-sm text-[var(--muted)]">
+                {patterns.length - headlinePatterns.length} more finding
+                {patterns.length - headlinePatterns.length === 1 ? '' : 's'}, with their
+                false-positive notes, are in the Patterns tab.
+              </p>
+            )}
+          </>
         )}
       </Card>
     </div>

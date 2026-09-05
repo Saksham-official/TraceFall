@@ -70,7 +70,8 @@ export function AlertsPanel() {
       <h2 className="border-b border-[var(--border)] px-3 py-2 font-semibold">
         Alerts
         {items.length > 0 && (
-          <span className="ml-1.5 text-[var(--muted)]">{items.length}</span>
+          // The space matters: without it the accessible name reads "Alerts7".
+          <span className="ml-1.5 text-[var(--muted)]"> ({items.length})</span>
         )}
       </h2>
       {alerts.isPending && <Spinner label="Loading alerts…" />}
