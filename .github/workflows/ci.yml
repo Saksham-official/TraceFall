@@ -42,7 +42,18 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy app
-      - run: pytest -q
+      - run: pytest -q --cov --cov-report=term-missing:skip-covered
+      # NFR-13: the three engines whose numbers reach a report are gated individually.
+      # A whole-project average would let one of them rot behind the others.
+      - name: Coverage gates on tracing, attribution and risk
+        run: |
+          pytest -q --cov=app/tracing --cov-fail-under=90 --cov-report= --no-header
+          pytest -q --cov=app/attribution --cov-fail-under=80 --cov-report= --no-header
+          pytest -q --cov=app/risk --cov-fail-under=80 --cov-report= --no-header
+      # The regression lock. It runs in the main job, not only on merge: a number that
+      # moves is worth knowing about on the pull request that moved it.
+      - name: Golden case
+        run: pytest -q tests/test_golden_case.py
       - run: pip-audit
 
   frontend:

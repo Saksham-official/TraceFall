@@ -32,6 +32,7 @@ dev = [
     "types-pyyaml>=6.0",
     "types-networkx>=3.4",
     "respx>=0.21",
+    "pytest-cov>=6.0",
 ]
 
 [build-system]
@@ -64,6 +65,18 @@ warn_unreachable = true
 [[tool.mypy.overrides]]
 module = ["reportlab.*"]
 ignore_missing_imports = true
+
+# NFR-13. Gated in CI rather than on every local run, so a developer running one test
+# file is not told their coverage is 3%.
+[tool.coverage.run]
+source = ["app"]
+branch = false
+
+[tool.coverage.report]
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
