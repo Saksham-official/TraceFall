@@ -280,7 +280,19 @@ def _attributions(story: list[Any], data: ReportData) -> None:
             detail = item.get("detail")
             if isinstance(detail, str):
                 block.append(Paragraph(f"• {_escape(detail)}", STYLES["muted"]))
+            elif isinstance(detail, dict):
+                # The measured features behind the claim. Flattened to `name=value`
+                # rather than dropped: a reader who wants to check the inference needs
+                # the numbers it was drawn from (principle 4).
+                block.append(Paragraph(f"• {_escape(_fields(detail))}", STYLES["muted"]))
         story.append(KeepTogether(block))
+
+
+def _fields(detail: dict[str, Any]) -> str:
+    """A measured-feature dict as one readable line. Empty values are left out."""
+    return ", ".join(
+        f"{name}={value}" for name, value in detail.items() if value is not None and value != ""
+    )
 
 
 def _risk(story: list[Any], data: ReportData) -> None:

@@ -354,13 +354,39 @@ function AttributionList({ rows }: { rows: AttributionRow[] }) {
           <ul className="mt-2 space-y-1 text-sm">
             {row.evidence.map((item, index) => (
               <li key={index} className="text-[var(--muted)]">
-                • {typeof item.detail === 'string' ? item.detail : JSON.stringify(item.detail)}
+                {typeof item.detail === 'string' || item.detail == null ? (
+                  <>• {item.detail}</>
+                ) : (
+                  <EvidenceFields fields={item.detail as Record<string, unknown>} />
+                )}
               </li>
             ))}
           </ul>
         </Card>
       ))}
     </div>
+  )
+}
+
+/**
+ * The measured features behind an attribution, as fields rather than as JSON.
+ *
+ * They have to be shown — a finding that dead-ends in "trust us" is the thing this product
+ * is built against — but stringifying the object produced a single 3,500-pixel line that
+ * gave the whole page a horizontal scrollbar, and no investigator was going to read it.
+ */
+function EvidenceFields({ fields }: { fields: Record<string, unknown> }) {
+  const shown = Object.entries(fields).filter(([, value]) => value !== null && value !== '')
+  if (shown.length === 0) return <>• No measurable behaviour was recorded for this address.</>
+  return (
+    <dl className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs sm:grid-cols-3">
+      {shown.map(([name, value]) => (
+        <div key={name} className="flex min-w-0 gap-1">
+          <dt className="shrink-0 font-mono">{name}</dt>
+          <dd className="truncate text-[var(--text)]">{String(value)}</dd>
+        </div>
+      ))}
+    </dl>
   )
 }
 
