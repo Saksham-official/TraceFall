@@ -521,3 +521,61 @@ network-free while still distinguishing "nothing there" from "could not see".
   `ALTER TYPE ... ADD VALUE` is transactional on PostgreSQL 12 and later.
 - A trace that hits this reason is **`PARTIAL`, never `COMPLETED`**, and the run's
   degradations name every address that could not be fetched.
+
+---
+
+## ADR-020 — ReportLab for PDF generation
+
+**Status:** Accepted · **Date:** 2026-09-05 · **Resolves:** OQ-12
+
+**Context.** The report is the artefact an investigator attaches to a case file. OQ-12 left
+the choice between ReportLab (programmatic layout, pure Python) and WeasyPrint (HTML/CSS,
+far faster to iterate, could share styling with the frontend), with a recommendation to
+validate WeasyPrint "unless the container dependencies prove painful".
+
+**Chosen:** ReportLab.
+
+**Why.** WeasyPrint needs Pango, Cairo and GDK-PixBuf as system packages. That is a real
+cost in three places this project cares about: the Docker image grows and gains a class of
+build failure unrelated to our code; a fresh clone on a developer laptop needs `brew` or
+`apt` before the test suite passes; and demo day is not the time to discover a missing
+shared library. ReportLab is `pip install` and nothing else, so **a fresh clone can
+generate a report with no system setup at all** — the same property that makes
+`LIVE_MODE=false` the default.
+
+The iteration-speed argument for WeasyPrint is real and was the stronger argument on
+paper. It loses because this report has a fixed structure defined in PRODUCT_SPEC.md
+stage 13 — it is a form, not a design surface, and it will be laid out once.
+
+**Trade-offs.** Layout in code is more verbose, and the PDF cannot share the frontend's
+stylesheet, so the two must be kept visually consistent by hand. If the report later needs
+rich layout or per-agency theming, WeasyPrint becomes the better answer and this decision
+should be revisited rather than worked around.
+
+---
+
+## ADR-021 — Report narrative is templated, not model-written
+
+**Status:** Accepted · **Date:** 2026-09-05 · **Resolves:** OQ-13
+
+**Context.** FR-115 allows an LLM to write report narrative from structured findings, with
+placeholder validation, regex rejection of model-produced addresses and hashes, tier-language
+checking, and a template fallback. OQ-13 asks whether it is worth building at all, and
+LIMITATIONS.md section 8 already recommends template mode for anything entering a case file.
+
+**Chosen:** templates only. `NarrativeSource.LLM` stays in the schema; nothing writes it.
+
+**Why.** If the standing recommendation for case-file documents is "use templates", the LLM
+path exists only for the case where the recommendation is ignored. Building it means building
+the whole safety apparatus — address and hash regex rejection, tier-language checking,
+placeholder validation, fallback — to protect prose that the guidance says not to use. That
+apparatus is the expensive part, and it is expensive precisely because the failure mode is
+severe: a model that upgrades `PROBABLE` to "is" in a document attached to a case file.
+
+MVP_SCOPE.md section 6 already lists LLM narrative as the **second thing to cut**. This is
+that cut, taken deliberately at the start rather than under time pressure at the end.
+
+**Trade-offs.** Report prose is more mechanical. That is an acceptable loss for a document
+whose value is in its facts and its evidence appendix. `narrative_source` is still recorded and
+printed on every report, so if the LLM path is ever built, existing reports remain
+distinguishable from new ones.

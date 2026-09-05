@@ -199,7 +199,9 @@ better project, and a more interesting answer to give a judge who asks why there
 
 ## Blocking Phase 11 — Reports
 
-### OQ-12 · ReportLab or WeasyPrint?
+### OQ-12 · ReportLab or WeasyPrint? — **ANSWERED**
+**Answered 2026-09-05 by ADR-020: ReportLab.** A fresh clone must be able to generate a report
+with no system packages installed. Original framing follows.
 **Trade-off.** ReportLab gives precise programmatic layout and no system dependencies, but PDF
 layout in code is slow to write. WeasyPrint renders HTML/CSS — far faster to iterate, and the
 report template could share styling with the frontend — but adds native system dependencies to
@@ -207,7 +209,9 @@ the Docker image.
 **Recommendation to validate:** WeasyPrint, for iteration speed, unless the container
 dependencies prove painful.
 
-### OQ-13 · Use an LLM for report narrative at all?
+### OQ-13 · Use an LLM for report narrative at all? — **ANSWERED**
+**Answered 2026-09-05 by ADR-021: no.** Templates only; `NarrativeSource.LLM` stays in the
+schema and nothing writes it. Original framing follows.
 **Why it matters.** [LIMITATIONS.md §8](LIMITATIONS.md) already recommends template mode for
 anything entering a case file. If the recommendation is always "use templates", the LLM path is
 a demo feature carrying real risk and real implementation cost (placeholder validation, regex
