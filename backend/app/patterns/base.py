@@ -118,7 +118,17 @@ def run_all(subject: Subject, detectors: Sequence[Detector] | None = None) -> St
     set of findings with the gap stated beats no findings at all.
     """
     result = StageResult()
-    for detector in detectors if detectors is not None else REGISTRY:
+    selected = detectors if detectors is not None else REGISTRY
+    if not selected:
+        # Zero detectors is not zero findings. Reporting an empty list here would be a
+        # silent smaller answer, which is the one thing this stage must not produce.
+        log.error("no pattern detectors are registered; import app.patterns.detectors")
+        result.unavailable.append(
+            {"pattern_type": "ALL", "reason": "No pattern detectors were registered."}
+        )
+        return result
+
+    for detector in selected:
         try:
             found = detector.run(subject, detector.config)
         except Exception as exc:  # noqa: BLE001 — isolation is the whole point

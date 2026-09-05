@@ -7,6 +7,7 @@ reach a report without its false-positive note, and that one broken detector doe
 the investigator the other five.
 """
 
+import pathlib
 import uuid
 from datetime import timedelta
 
@@ -368,3 +369,43 @@ async def test_a_run_with_no_findings_writes_nothing(session: AsyncSession) -> N
 
     assert await persistence.save(session, run_id, ChainCode.TRON, quiet) == 0
     assert (await session.scalars(select(PatternFinding))).all() == []
+
+
+def test_importing_the_package_registers_every_detector() -> None:
+    """Regression: the pipeline ran this stage with an empty registry.
+
+    `worker.py` imported only `patterns.base`, so no decorator had run and `REGISTRY` was
+    empty. The stage reported "0 findings" on every analysis — a silent smaller answer
+    that looked exactly like a clean trace. The golden case caught it.
+    """
+    import importlib
+    import subprocess
+    import sys
+
+    # A fresh interpreter, importing only what the worker imports.
+    result = subprocess.run(  # noqa: S603
+        [
+            sys.executable,
+            "-c",
+            "import sys; sys.path.insert(0, '.'); import tests.conftest;"
+            "from app.patterns.base import REGISTRY; print(len(REGISTRY))",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(pathlib.Path(__file__).resolve().parents[1]),
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert int(result.stdout.strip()) == 6
+    assert len(importlib.import_module("app.patterns.base").REGISTRY) == 6
+
+
+async def test_a_stage_with_no_detectors_reports_a_gap_not_an_empty_result() -> None:
+    """Zero detectors is not zero findings, and must never read as one."""
+    subject = await subject_from([tx("A", "B", 1_000, 0)], root="A", amount=1_000)
+
+    result = run_all(subject, detectors=[])
+
+    assert result.findings == []
+    assert result.degraded is True
+    assert "No pattern detectors were registered" in result.unavailable[0]["reason"]

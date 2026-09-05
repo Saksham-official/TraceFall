@@ -45,6 +45,10 @@ from app.intel import service as intel
 from app.normalize import service as normalize
 from app.normalize.transfer import NormalizedTransfer
 from app.orchestrator import queue
+
+# Imported for its side effect as well as its name: importing the package registers
+# every detector (see app/patterns/__init__.py).
+from app.patterns import detectors as _detectors  # noqa: F401
 from app.patterns import persistence as pattern_store
 from app.patterns.base import DETECTOR_VERSION, Subject, run_all
 from app.risk import engine as risk
