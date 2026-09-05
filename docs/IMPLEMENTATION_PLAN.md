@@ -19,8 +19,8 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 1 | Repository foundation | ☑ | 0 |
 | 2 | Backend foundation | ☑ | 1 |
 | 3 | Blockchain ingestion | ☑ | 2 |
-| 4 | Transaction normalization | ☐ | 3 |
-| 5 | Wallet tracing | ☐ | 4 |
+| 4 | Transaction normalization | ☑ | 3 |
+| 5 | Wallet tracing | ☑ | 4 |
 | 6 | Graph analytics & pattern detection | ☐ | 5 |
 | 7 | VASP attribution | ☐ | 4 (5 for full value) |
 | 8 | Risk engine | ☐ | 6, 7 |
@@ -224,7 +224,7 @@ Confirmed directly:
 
 ---
 
-## Phase 4 — Transaction normalization ☐
+## Phase 4 — Transaction normalization ☑
 **Depends on:** 3 · **Enables:** 5, 7
 
 **Goal.** One chain-agnostic transfer model.
@@ -251,9 +251,20 @@ path**.
 large-amount round-trip property test.
 **DoD.** Both chains normalize identically; ≥ 85% coverage on `normalize/`.
 
+**Verified 2026-09-05.** 239 tests pass; ruff, `ruff format --check` and mypy `strict` clean
+across 63 source files. Both chains produce identical `Transfer` rows through one persistence
+path; amounts stay integer-exact end to end (`RawAmount`, no float in the amount path); a token
+with unknown decimals keeps its raw amount with display suppressed rather than guessing;
+multi-transfer transactions expand to one row each; failed transfers are retained and flagged;
+re-ingestion upserts on `(chain, tx_hash, transfer_index)` and is a no-op. The worker runs
+NORMALIZATION as its second stage.
+
+**Outstanding.** `pytest-cov` is not installed, so the ≥ 85% coverage figure is asserted by the
+test set, not measured. Install it and record the number.
+
 ---
 
-## Phase 5 — Wallet tracing ☐
+## Phase 5 — Wallet tracing ☑
 **Depends on:** 4 · **Enables:** 6
 
 **Goal.** The correctness core: multi-hop fund flow tracing.
@@ -282,6 +293,22 @@ scenarios produce expected results · a 5-hop trace on a real address completes 
 **Tests.** The full suite in [TESTING_STRATEGY.md §4](TESTING_STRATEGY.md) — the largest and
 most important test file in the project.
 **DoD.** Deterministic, correct, fully offline-testable; ≥ 90% coverage on `tracing/`.
+
+**Verified 2026-09-05.** 85 tests across `test_tracing_{anchor,haircut,persistence,properties,
+scenarios}.py` and `test_transfer_model.py`. Haircut taint with the accounting invariant
+asserted in production, not only in tests · all six termination reasons produced · eleven named
+scenarios including fan-out, peel chain, cycle, mixer, dust flood, and no-outflow · anchor
+resolution for exact, multiple, and no matches, rejecting ambiguous token symbols · path
+ranking · persistence to `traces` / `trace_nodes` / `trace_edges`.
+
+**Outstanding.**
+- **Not wired into the pipeline.** `worker.py` runs RETRIEVAL → NORMALIZATION and stops;
+  `app.tracing` is imported nowhere outside its own package, and `orchestrator/` has only
+  `queue.py`. Add the TRACING stage.
+- `engine.trace(is_service_boundary=...)` defaults to `None`. The real implementation is
+  Phase 7 attribution; until then no trace stops at a service boundary.
+- Backward tracing (a `SHOULD`) is not implemented.
+- Coverage unmeasured — `pytest-cov` is not installed.
 
 ---
 

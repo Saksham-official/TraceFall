@@ -6,30 +6,35 @@
 
 ## Current phase
 
-> ## PHASE 4 — TRANSACTION NORMALIZATION (next)
-> Phases 0–3 are complete and Phase 10 (frontend) is partially built. The backend
+> ## PHASE 7 — VASP ATTRIBUTION (next)
+> Phases 0–5 are complete and Phase 10 (frontend) is partially built. The backend
 > authenticates, stores cases and suspect addresses, validates TRON and Ethereum addresses,
-> and **retrieves real blockchain data** with caching, per-method rate limiting, retry,
-> failover, evidence capture, and a committed fixture cache that replays offline. The
-> frontend covers login, dashboard, case and address intake, and analysis progress.
-> **Nothing is normalized, traced, attributed or scored yet.**
+> **retrieves real blockchain data** with caching, per-method rate limiting, retry, failover,
+> evidence capture and a committed fixture cache that replays offline, **normalizes it into
+> the canonical `Transfer` model**, and **traces fund flow** with haircut taint, six
+> termination reasons and a production accounting invariant. The frontend covers login,
+> dashboard, case and address intake, and analysis progress.
+> **Nothing is attributed, graphed or scored yet.**
 >
-> 147 backend tests and 32 frontend tests pass, with no network access.
+> 239 backend tests and 32 frontend tests pass, with no network access.
 >
 > **Provider reality, measured (`docs/research/OQ-01-provider-rate-limits.md`):** TronGrid
 > without a key sustains only 0.5 req/s *per RPC method*; Blockscout is Ethereum's primary
 > because Etherscan now rejects keyless requests. NFR-01's 120-second target holds for a warm
 > or fixture cache, not a cold live trace.
 >
-> Next is **Phase 4 — Transaction normalization**: raw provider payloads become the
-> canonical `Transfer` model. The rules that matter are in
-> [docs/BLOCKCHAIN_ANALYTICS.md](docs/BLOCKCHAIN_ANALYTICS.md) section 5 — integer-exact
-> amounts, never guess a token's decimals, retain failed transfers, idempotent re-ingestion.
+> Next is **Phase 7 — VASP attribution**, the phase that answers PS26183. The rules that
+> matter are in [docs/VASP_IDENTIFICATION.md](docs/VASP_IDENTIFICATION.md) — dataset match
+> yields `CONFIRMED`, the deposit-funnel heuristic yields `PROBABLE` with its confidence
+> bounded by the weakest link in the chain, and reaching `UNATTRIBUTED` often means the system
+> is working. Phase 6 (graph and patterns) can run in parallel.
 > Update the phase table in `IMPLEMENTATION_PLAN.md` when a phase completes, and update this
 > banner when the phase changes.
 >
-> Outstanding from Phase 1: `docker compose up` has not been run (Docker is not installed on
-> the development machine).
+> **Outstanding.** The tracing engine is not yet called by the pipeline — `worker.py` stops
+> after NORMALIZATION, and `engine.trace`'s `is_service_boundary` callback stays `None` until
+> this phase supplies it. `docker compose up` has not been run (Docker is not installed on the
+> development machine).
 
 ---
 
