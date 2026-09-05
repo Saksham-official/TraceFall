@@ -1,0 +1,53 @@
+# The addresses the demo traces (OQ-15).
+#
+# Every one is designated by the US Office of Foreign Asset Control and appears in
+# data/labels/ofac_sanctioned.json — publicly documented as fraud-linked by a named
+# authority, with a date, which is the strongest provenance available without private
+# law-enforcement data. None was chosen for a flattering result.
+#
+# They were selected by screening the 281 OFAC-designated TRON addresses in that dataset
+# for USDT-TRC20 outflow inside the analysis window. **Only five of forty sampled had
+# any** — the rest receive nothing but address-poisoning dust ("TG: jieuu", "ha138 com"),
+# which is a fact about sanctioned addresses worth saying out loud rather than hiding
+# behind a curated demo. See docs/research/OQ-15-demo-addresses.md.
+#
+# `scripts/demo_fixtures.py --check` walks every address here offline and fails if any
+# hop the trace would take has no committed fixture. DEMO_SCRIPT.md walks the same list,
+# so the rehearsal and the pre-flight check cannot drift apart. Fixtures are captured over
+# `window_days` — the same slice the analysis asks for, so the two cannot disagree.
+
+# The intake's own defaults. Nothing in the advanced panel is touched during the demo, so
+# these are what the analysis actually runs with — and what the fixtures are captured for.
+window_days: 90
+max_depth: 5
+
+addresses:
+  - address: TUcjuVB6RFvsMgE352Kdc3VHvFvteti97B
+    chain: TRON
+    role: headline
+    why: >
+      Twenty USDT transfers out to six destinations inside the window, against
+      twenty-one in. A real multi-hop flow to follow, not a single hop dressed up as one.
+
+  - address: TWBAPzpPiZarfVsY2BLXeaLhNHurn4wkWG
+    chain: TRON
+    role: fan-out
+    why: >
+      Fifteen outbound transfers spread over nine destinations — the splitting shape the
+      FAN_OUT detector exists for, on real data rather than a constructed example.
+
+  - address: TLFqEhiG7RUSZ9x5iph99Ke5782dkgRnWf
+    chain: TRON
+    role: funnel
+    why: >
+      Six outbound transfers into two destinations. The consolidation shape, and the case
+      where the deposit-address heuristic has something to work with.
+
+  - address: TXoVNrqm11FFVKcF1vEND64gibVkr1HwAR
+    chain: TRON
+    role: honestly-unattributable
+    why: >
+      Three transfers in, one out. Too little behaviour to classify, so the system reports
+      UNATTRIBUTED with reason INSUFFICIENT_ACTIVITY and says what would be needed
+      instead. This is the case that earns the other three their credibility, and it is
+      the measured norm: recall on the deposit heuristic is 0.186.

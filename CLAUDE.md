@@ -237,4 +237,5 @@ is `Transfer` (one row per value movement) · API prefix `/api/v1`.
 | What's the API? | [docs/API_SPEC.md](docs/API_SPEC.md) |
 | Why was X decided? | [docs/DECISIONS.md](docs/DECISIONS.md) |
 | Can we claim Y? | [docs/LIMITATIONS.md](docs/LIMITATIONS.md) |
+| How does the demo run? | [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md), [config/demo_addresses.yaml](config/demo_addresses.yaml) |
 | What's still undecided? | [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md) |
