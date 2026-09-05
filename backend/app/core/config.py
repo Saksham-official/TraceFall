@@ -69,7 +69,11 @@ class Settings(BaseSettings):
     trace_address_budget: int = 60
     graph_node_cap: int = 500
 
-    evidence_storage_path: str = "/data/evidence"
+    # Repository-relative by default so a fresh clone works with no setup — the same
+    # reason LIVE_MODE is false. The container overrides both to /data/... where a
+    # volume is mounted; see .env.example and docker-compose.yml.
+    evidence_storage_path: str = "var/evidence"
+    report_storage_path: str = "var/reports"
     fixture_path: str = "tests/fixtures/chain_data"
 
     @property

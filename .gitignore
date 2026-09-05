@@ -33,3 +33,9 @@ models/*.pkl
 .DS_Store
 .idea/
 .vscode/
+
+# Local evidence and report storage (the container uses /data instead).
+var/
+
+# Browser-automation scratch output.
+.playwright-mcp/

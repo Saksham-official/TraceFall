@@ -80,3 +80,11 @@ class ProviderUnavailable(TraceFallError):
     code = "PROVIDER_UNAVAILABLE"
     status_code = 503
     message = "A required upstream service is unavailable"
+
+
+class StorageUnavailable(TraceFallError):
+    """Local storage could not be written. The message names the setting to fix."""
+
+    code = "STORAGE_UNAVAILABLE"
+    status_code = 503
+    message = "Report storage is not writable"

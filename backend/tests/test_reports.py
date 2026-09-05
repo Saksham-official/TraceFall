@@ -17,6 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app import worker
+from app.core.config import get_settings
 from app.db.models.analysis import AnalysisRun
 from app.db.models.entity import Attribution
 from app.db.models.enums import ChainCode, NarrativeSource, ReportFormat
@@ -31,8 +32,13 @@ from tests.test_pipeline import queued_run
 
 @pytest.fixture(autouse=True)
 def storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Reports are written under a temporary root; /data is not writable in tests."""
-    monkeypatch.setattr(generator, "storage_root", lambda: tmp_path / "reports")
+    """Point report storage at a temporary directory, through the real setting.
+
+    Patching `storage_root` itself would have hidden the bug this fixture used to hide:
+    the default path was unwritable outside the container and every report request
+    returned a 500.
+    """
+    monkeypatch.setattr(get_settings(), "report_storage_path", str(tmp_path / "reports"))
     return tmp_path / "reports"
 
 
@@ -345,3 +351,24 @@ async def test_raw_amounts_print_as_plain_digits_not_scientific_notation(
     for value in printed:
         assert value.isdigit(), value
         assert "E" not in value.upper()
+
+
+async def test_unwritable_storage_says_which_setting_to_fix(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A 500 with a stack trace tells an operator nothing. This one names the setting."""
+    run_id, case_id, user_id = await analysed(session)
+    monkeypatch.setattr(get_settings(), "report_storage_path", "/dev/null/nope")
+
+    with pytest.raises(generator.StorageUnavailable, match="REPORT_STORAGE_PATH"):
+        await generator.generate(session, run_id, case_id, user_id, ReportFormat.PDF)
+
+
+def test_the_default_storage_paths_work_without_a_container() -> None:
+    """A fresh clone must generate a report with no setup, as it runs with no keys."""
+    from app.core.config import Settings
+
+    defaults = Settings(secret_key="x" * 40)
+
+    assert not defaults.report_storage_path.startswith("/")
+    assert not defaults.evidence_storage_path.startswith("/")

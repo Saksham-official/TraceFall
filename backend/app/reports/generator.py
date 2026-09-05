@@ -36,9 +36,12 @@ class GeneratedReport:
     narrative_source: NarrativeSource
 
 
+class StorageUnavailable(RuntimeError):
+    """The report could not be written. Says where, so it can be fixed."""
+
+
 def storage_root() -> Path:
-    """Reports live beside evidence, under the same configured storage root."""
-    return Path(get_settings().evidence_storage_path).parent / "reports"
+    return Path(get_settings().report_storage_path)
 
 
 def build(data: ReportData, report_id: uuid.UUID, report_format: ReportFormat) -> bytes:
@@ -86,9 +89,16 @@ async def generate(
     digest = hashlib.sha256(content).hexdigest()
 
     directory = storage_root() / str(case_id)
-    directory.mkdir(parents=True, exist_ok=True)
     path = directory / f"{report_id}.{str(report_format).lower()}"
-    path.write_bytes(content)
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+    except OSError as exc:
+        # A 500 with a stack trace tells an operator nothing. Name the setting.
+        raise StorageUnavailable(
+            f"Could not write the report to {directory}: {exc.strerror}. "
+            f"Set REPORT_STORAGE_PATH to a writable directory."
+        ) from exc
 
     session.add(
         Report(
@@ -127,6 +137,7 @@ def verify(report: Report) -> bool:
 
 __all__ = [
     "GeneratedReport",
+    "StorageUnavailable",
     "build",
     "generate",
     "headline",

@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 
 from app.core.deps import SessionDep, get_accessible_case, require_role
-from app.core.exceptions import NotFound
+from app.core.exceptions import NotFound, StorageUnavailable
 from app.db.models.analysis import AnalysisRun
 from app.db.models.enums import ReportFormat, ReportType, UserRole
 from app.db.models.output import Report
@@ -65,14 +65,17 @@ async def create_report(
     if run is None or run.case_id != case_id:
         raise NotFound("Analysis run not found on this case")
 
-    generated = await generator.generate(
-        session,
-        run_id=run.id,
-        case_id=case_id,
-        user_id=user.id,
-        report_format=payload.format,
-        report_type=payload.report_type,
-    )
+    try:
+        generated = await generator.generate(
+            session,
+            run_id=run.id,
+            case_id=case_id,
+            user_id=user.id,
+            report_format=payload.format,
+            report_type=payload.report_type,
+        )
+    except generator.StorageUnavailable as exc:
+        raise StorageUnavailable(str(exc)) from exc
     report = await session.get(Report, generated.report_id)
     assert report is not None
     return _out(report, verified=True)
