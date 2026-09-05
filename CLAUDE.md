@@ -98,7 +98,7 @@ Detail: [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md),
 | **Cache / queue** | Redis 7 |
 | **Blockchain data** | TronGrid (primary) + TronScan; Etherscan + Blockscout. Chain logic confined to `chains/` |
 | **Graph analytics** | NetworkX, in memory, per investigation |
-| **AI/ML** | LightGBM deposit-address classifier + SHAP. Optional. Everything else deterministic |
+| **AI/ML** | **None ships.** The deposit-address classifier (Phase 9) was optional and was cut; the shipped heuristic is deterministic. `ml/` does not exist |
 | **Risk engine** | Transparent weighted rules from versioned config. **No ML in scoring** |
 | **Reports** | ReportLab/WeasyPrint PDF; optional LLM narrative with structural safeguards |
 | **External** | Blockchain APIs, public label datasets, optional price and LLM APIs — all optional at runtime |
