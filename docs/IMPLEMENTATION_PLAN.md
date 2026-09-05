@@ -28,7 +28,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 10 | Frontend dashboard | ◐ | 2 (mocks), 6/7/8 (real data) |
 | 11 | Investigation reports | ☑ | 8 |
 | 12 | Security hardening | ☑ | 2, 10 |
-| 13 | Testing & QA | ◐ | all |
+| 13 | Testing & QA | ☑ | all |
 | 14 | Deployment | ☑ | 10 |
 | 15 | SIH demo hardening | ☐ | 13, 14 |
 
@@ -828,7 +828,7 @@ and no default credentials in any build.
 
 ---
 
-## Phase 13 — Testing & QA ◐
+## Phase 13 — Testing & QA ☑
 **Depends on:** all · **Written alongside each phase, consolidated here**
 
 **Goal.** The full pyramid, with the golden case locked.
@@ -876,13 +876,28 @@ as though it had looked** — a silent smaller answer that looked exactly like a
 one that four earlier pipeline and API tests had accepted. `run_all` now records a gap rather
 than an empty result when it has no detectors, and importing the package registers them.
 
-**Outstanding.**
-1. **Playwright E2E is not built.** The seven flows are covered at the app level by vitest
-   render tests against a stubbed API, and the real stack has been driven by hand in a browser —
-   but there is no committed suite that runs against a live deployment. It belongs with Phase 14,
-   where the compose stack it needs to drive will exist.
-2. **The attribution precision gate is unenforceable**, not unimplemented: it needs the labelled
-   hold-out set, which needs the exchange labels blocked on ADR-018.
+**Completed 2026-09-05**, once Phase 14 gave it a stack to drive.
+
+**Playwright end-to-end suite** — `frontend/e2e/`, five tests against the running compose
+deployment: a real browser, real nginx, the real API and worker running the real pipeline, and a
+real PDF coming back out. It runs in 11 seconds and is deliberately outside `npm test`, because
+it needs a live stack and a seeded administrator; `npm run e2e` with `E2E_BASE_URL`, `E2E_EMAIL`
+and `E2E_PASSWORD`, none of them hard-coded.
+
+**It found a bug on its first complete run.** The report download was a plain `<a href>` to a
+token-protected endpoint. A browser navigation carries cookies, not an `Authorization` header,
+and the refresh cookie is scoped to the auth routes — so **clicking Download returned 401 and
+the investigator got an error page instead of their report**. Every layer beneath it was fine:
+the endpoint worked with `curl -H`, the API test passed because it sent the header, and the
+component test stubbed the fetch. Only a real browser click could show it. Now fetched with the
+token and handed to the browser as a blob, and the test asserts the downloaded bytes start with
+`%PDF-` rather than merely that a file arrived.
+
+**The attribution precision gate is enforced and met** — 0.989, measured against Binance's own
+published deposit addresses. See Phase 7 and
+[research/OQ-09-deposit-heuristic-precision.md](research/OQ-09-deposit-heuristic-precision.md).
+It needs live network access, so it runs manually or on a schedule beside the live smoke tests
+(TESTING_STRATEGY.md §13), never in the offline suite.
 
 ---
 
