@@ -64,10 +64,7 @@ class Observed:
     def role(self) -> str:
         if not self.reachable:
             return "UNVERIFIED"
-        if (
-            self.balance_trx >= COLD_MIN_BALANCE_TRX
-            and self.transactions < BUSY_MIN_TRANSACTIONS
-        ):
+        if self.balance_trx >= COLD_MIN_BALANCE_TRX and self.transactions < BUSY_MIN_TRANSACTIONS:
             return "cold"
         if self.transactions >= BUSY_MIN_TRANSACTIONS:
             return "hot"
@@ -80,7 +77,7 @@ def observe(address: str, timeout: float = 20.0) -> Observed:
     # The URL is built from a constant and a base58check-validated address, so the scheme
     # cannot be anything but https — but assert it rather than rely on that reasoning.
     assert url.startswith("https://api.trongrid.io/")
-    request = urllib.request.Request(url, headers={"Accept": "application/json"})
+    request = urllib.request.Request(url, headers={"Accept": "application/json"})  # noqa: S310
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
             payload = json.load(response)
@@ -89,9 +86,7 @@ def observe(address: str, timeout: float = 20.0) -> Observed:
 
     rows = payload.get("data") or []
     if not rows:
-        return Observed(
-            address, reachable=False, note="TronGrid returned no account record"
-        )
+        return Observed(address, reachable=False, note="TronGrid returned no account record")
 
     account = rows[0]
     return Observed(
@@ -106,9 +101,7 @@ def observe(address: str, timeout: float = 20.0) -> Observed:
     )
 
 
-def curate(
-    entity: str, source_url: str, addresses: list[str]
-) -> tuple[list[dict], list[str]]:
+def curate(entity: str, source_url: str, addresses: list[str]) -> tuple[list[dict], list[str]]:
     labels: list[dict] = []
     rejected: list[str] = []
 
@@ -161,19 +154,14 @@ def dataset(entity: str, source_url: str, labels: list[dict]) -> dict:
             ),
         },
         # `_observed` is stripped: it is why we believe the role, not part of the label.
-        "labels": [
-            {k: v for k, v in label.items() if not k.startswith("_")}
-            for label in labels
-        ],
+        "labels": [{k: v for k, v in label.items() if not k.startswith("_")} for label in labels],
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--entity", required=True, help='e.g. "CoinDCX"')
-    parser.add_argument(
-        "--source-url", required=True, help="the exchange's own disclosure page"
-    )
+    parser.add_argument("--source-url", required=True, help="the exchange's own disclosure page")
     parser.add_argument("--addresses", nargs="+", required=True)
     parser.add_argument("--write", action="store_true", help="write the dataset file")
     args = parser.parse_args()
@@ -207,9 +195,7 @@ def main() -> int:
     slug = "".join(c.lower() if c.isalnum() else "_" for c in args.entity).strip("_")
     path = OUTPUT_DIR / f"exchange_{slug}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(dataset(args.entity, args.source_url, labels), indent=2) + "\n"
-    )
+    path.write_text(json.dumps(dataset(args.entity, args.source_url, labels), indent=2) + "\n")
     print(f"\nwrote {len(labels)} labels to {path.relative_to(ROOT)}")
     print("Load them with: docker compose exec api python -m app.cli load-labels")
     return 1 if rejected else 0
