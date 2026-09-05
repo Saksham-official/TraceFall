@@ -6,40 +6,38 @@
 
 ## Current phase
 
-> ## PHASES 6 AND 7 — ENGINES BUILT, PIPELINE NOT WIRED
-> Phases 0–5 are complete. **Phases 6 and 7 have their engines built and tested but are not
-> finished**, and Phase 10 (frontend) is partially built. The backend authenticates, stores
-> cases and suspect addresses, validates TRON and Ethereum addresses, **retrieves real
-> blockchain data** with caching, per-method rate limiting, retry, failover, evidence capture
-> and a committed fixture cache that replays offline, **normalizes it** into the canonical
-> `Transfer` model, **traces fund flow** with haircut taint and a production accounting
-> invariant, **attributes addresses** across the three tiers, **builds the graph** with its
-> derived measures and render cap, and **detects six behavioural patterns**.
+> ## PHASE 8 — RISK ENGINE (next)
+> **Phases 0–6 are complete. The pipeline is wired and runs end to end offline.** Phase 7
+> (attribution) is built, tested and serving, but stays ◐ for one reason only: the exchange
+> label set. Phase 10 (frontend) is partially built.
 >
-> 337 backend tests and 32 frontend tests pass, with no network access.
+> A run goes RETRIEVAL → NORMALIZATION → TRACING → GRAPH → PATTERNS → ATTRIBUTION and the
+> results are reachable at `GET /analyses/{id}/graph`, `/attributions` and `/patterns`.
+> Verified through the HTTP API with no network: a suspect address sweeping to a labelled
+> exchange returns **`PROBABLE — <exchange>, 0.80`** by `DEPOSIT_HEURISTIC` with ten evidence
+> items, while the exchange itself returns `CONFIRMED` carrying no confidence number.
+>
+> 363 backend tests and 32 frontend tests pass, with no network access. ruff, `ruff format
+> --check` and mypy `strict` are clean across 81 source files. The migration chain applies
+> cleanly to an empty database.
 >
 > **Provider reality, measured (`docs/research/OQ-01-provider-rate-limits.md`):** TronGrid
 > without a key sustains only 0.5 req/s *per RPC method*; Blockscout is Ethereum's primary
 > because Etherscan now rejects keyless requests. NFR-01's 120-second target holds for a warm
-> or fixture cache, not a cold live trace.
+> or fixture cache, not a cold live trace. **Retrieval now happens twice** — the root address
+> up front, then every address the trace discovers, on demand — so a cold live trace is bounded
+> by that rate, and in fixture mode every hop past a fixtured address ends `DATA_UNAVAILABLE`.
 >
-> **Three things block progress, and all three are decisions rather than code.** Each is
-> written up where it belongs; the per-phase detail is in `IMPLEMENTATION_PLAN.md`.
+> **The one thing blocking Phase 7 is not code.** `data/labels/ofac_sanctioned.json` holds 405
+> real sanctioned addresses, so `CONFIRMED` currently means sanctions only and a real deposit
+> address resolves to "a deposit address for an unidentified service". The engine is ready for
+> exchange labels and proven to use them. Curating them needs **ADR-018 signed by a named
+> person** (drafted, in DECISIONS.md) and **TronScan's terms read in a browser**. This is the
+> single highest-leverage hour of work in the project (MVP_SCOPE.md §6).
 >
-> 1. **The exchange label set does not exist.** `data/labels/ofac_sanctioned.json` holds 405
->    real sanctioned addresses, so `CONFIRMED` currently means sanctions only and every deposit
->    address resolves to "a deposit address for an unidentified service". **ADR-018 is drafted
->    and needs a named signer**, and TronScan's terms need reading in a browser. This is the
->    single highest-leverage hour of work in the project (MVP_SCOPE.md §6).
-> 2. **OQ-18 — how does a trace report an address it could not fetch?** Today it terminates as
->    `NO_OUTFLOW`, which claims nothing left the address rather than admitting we could not
->    look. Needs an ADR before the TRACING stage is wired into `worker.py`.
-> 3. **The pipeline stops after NORMALIZATION.** Tracing, graph, patterns and attribution are
->    all built and tested but nothing calls them yet — blocked on item 2.
->
-> Once those are settled the natural order is: wire the pipeline, add
-> `api/v1/{graph,patterns,attribution}.py`, then **Phase 8 — the risk engine**, whose
-> dependencies (6 and 7) are otherwise met.
+> Next is **Phase 8 — the risk engine**: transparent weighted rules from versioned config, one
+> evaluator per signal, confidence returned separately from the score, and `not_evaluated`
+> tracking so a missing input is never a silent zero. Its dependencies (6 and 7) are met.
 > Update the phase table in `IMPLEMENTATION_PLAN.md` when a phase completes, and update this
 > banner when the phase changes.
 >

@@ -21,7 +21,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 3 | Blockchain ingestion | ☑ | 2 |
 | 4 | Transaction normalization | ☑ | 3 |
 | 5 | Wallet tracing | ☑ | 4 |
-| 6 | Graph analytics & pattern detection | ◐ | 5 |
+| 6 | Graph analytics & pattern detection | ☑ | 5 |
 | 7 | VASP attribution | ◐ | 4 (5 for full value) |
 | 8 | Risk engine | ☐ | 6, 7 |
 | 9 | AI / ML | ☐ | 7 |
@@ -312,7 +312,7 @@ ranking · persistence to `traces` / `trace_nodes` / `trace_edges`.
 
 ---
 
-## Phase 6 — Graph analytics & pattern detection ◐
+## Phase 6 — Graph analytics & pattern detection ☑
 **Depends on:** 5 · **Enables:** 8, 10
 
 **Goal.** Turn traces into the object investigators reason with, and name the behaviours in it.
@@ -389,18 +389,23 @@ Built and confirmed directly:
 reader that scanned every transfer on the chain per call. Removed; `intel/service.py`'s indexed
 batch loader is now the only one.
 
-**Outstanding — this phase is not done.**
-1. **No `api/v1/{graph,patterns}.py`.** Deliberately not built yet: the endpoints would have no
-   data to serve until the pipeline runs a trace (item 2), and scaffolding an endpoint over
-   nothing is not worth the file.
-2. **The pipeline still stops after NORMALIZATION**, and wiring TRACING onward needs a decision
-   first. Retrieval fetches only the root address, so a multi-hop trace has to fetch each
-   address it discovers — and when that fetch fails (a missing fixture, a provider outage), the
-   node currently terminates as `NO_OUTFLOW`, which asserts something false: "nothing left this
-   address" rather than "we could not look". There is no `TerminationReason` for the honest
-   answer and all migrations are front-loaded (Phase 2), so **this needs an ADR before code.**
-3. Louvain community detection (`NICE TO HAVE`, GRAPH_ANALYTICS.md §3) is not built.
-4. Risk scoring does not yet populate `risk_score` / `risk_band` on nodes — that is Phase 8.
+**Completed 2026-09-05.** `api/v1/results.py` serves `GET /analyses/{id}/graph`,
+`/attributions` and `/patterns`, and the pipeline runs the stages that fill them. The graph is
+rebuilt from the stored trace on read rather than cached, so it cannot drift from the trace it
+came from.
+
+**Found while wiring, and fixed:**
+- **`truncated` was set whenever a cap was applied, even when nothing was dropped.** A flag
+  that cries wolf is a flag investigators learn to ignore, and this is the one flag they must
+  not. It now reports what actually happened.
+- **A trace's pruned branches and unreachable addresses were lost on save**, so a graph rebuilt
+  from the database showed a smaller answer than the trace found — and the accounting invariant
+  could not be re-checked from stored rows. Migration `0006_pruned_branches` keeps both, and a
+  round-trip test asserts the invariant still holds after a reload.
+
+**Outstanding, both deliberate.**
+1. Louvain community detection (`NICE TO HAVE`, GRAPH_ANALYTICS.md §3) is not built.
+2. Risk scoring does not yet populate `risk_score` / `risk_band` on nodes — that is Phase 8.
 
 ---
 
@@ -484,7 +489,20 @@ Built and confirmed directly:
 3. **The precision ≥ 0.95 gate is unmeasured.** It needs the labelled hold-out set, which needs
    item 1. The thresholds are OQ-09's reasoned defaults, not calibrated ones.
 4. **Investigator override (`SHOULD`)** — the table exists, no endpoint does.
-5. Attribution is not called by the pipeline; `worker.py` still stops after NORMALIZATION.
+5. ~~Attribution is not called by the pipeline.~~ **Done 2026-09-05** — the pipeline runs
+   RETRIEVAL → NORMALIZATION → TRACING → GRAPH → PATTERNS → ATTRIBUTION, and
+   `GET /analyses/{id}/attributions` serves the result.
+
+**Found while wiring, and fixed:** the chained inference was skipped whenever a deposit
+address's sweep destination was itself one of the addresses being attributed — which is the
+*common* case, since the trace followed the money there. The deposit address reported "a
+deposit address for an unidentified service" while its `CONFIRMED` exchange sat one hop away in
+the same result. Regression test added.
+
+**Verified end to end 2026-09-05** through the HTTP API, offline: case → address → analysis →
+worker → `GET /analyses/{id}/graph`. A suspect address sweeping to a labelled exchange returns
+`PROBABLE — <exchange>, 0.80` by `DEPOSIT_HEURISTIC` with ten evidence items, the exchange
+itself returns `CONFIRMED` with no confidence number, and the run completes at 100%.
 
 ---
 
