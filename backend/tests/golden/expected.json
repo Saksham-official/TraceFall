@@ -1,0 +1,535 @@
+{
+  "alerts": [],
+  "attributions": [
+    {
+      "address": "DEPOSIT",
+      "confidence": 0.95,
+      "entity": "Golden Exchange",
+      "entity_type": "EXCHANGE",
+      "evidence_count": 11,
+      "method": "DEPOSIT_HEURISTIC",
+      "tier": "PROBABLE"
+    },
+    {
+      "address": "HOT",
+      "confidence": null,
+      "entity": "Golden Exchange",
+      "entity_type": "EXCHANGE",
+      "evidence_count": 2,
+      "method": "DATASET_MATCH",
+      "tier": "CONFIRMED"
+    },
+    {
+      "address": "MULE_A",
+      "confidence": null,
+      "entity": null,
+      "entity_type": "UNKNOWN",
+      "evidence_count": 4,
+      "method": "DEPOSIT_HEURISTIC",
+      "tier": "UNATTRIBUTED"
+    },
+    {
+      "address": "MULE_B",
+      "confidence": null,
+      "entity": null,
+      "entity_type": "UNKNOWN",
+      "evidence_count": 4,
+      "method": "DEPOSIT_HEURISTIC",
+      "tier": "UNATTRIBUTED"
+    },
+    {
+      "address": "SCAM",
+      "confidence": null,
+      "entity": null,
+      "entity_type": "UNKNOWN",
+      "evidence_count": 4,
+      "method": "DEPOSIT_HEURISTIC",
+      "tier": "UNATTRIBUTED"
+    }
+  ],
+  "edges": [
+    {
+      "from": "DEPOSIT",
+      "tainted_amount_raw": "27991002891",
+      "to": "HOT",
+      "total_amount_raw": "28000000000",
+      "transfer_count": 1,
+      "tx_hashes": [
+        "7377656570303000000000000000000000000000000000000000000000000000"
+      ]
+    },
+    {
+      "from": "MULE_A",
+      "tainted_amount_raw": "28000000000",
+      "to": "DEPOSIT",
+      "total_amount_raw": "28000000000",
+      "transfer_count": 1,
+      "tx_hashes": [
+        "6d756c6561303000000000000000000000000000000000000000000000000000"
+      ]
+    },
+    {
+      "from": "MULE_B",
+      "tainted_amount_raw": "10000000000",
+      "to": "HOT",
+      "total_amount_raw": "10000000000",
+      "transfer_count": 1,
+      "tx_hashes": [
+        "6d756c6562303000000000000000000000000000000000000000000000000000"
+      ]
+    },
+    {
+      "from": "SCAM",
+      "tainted_amount_raw": "28000000000",
+      "to": "MULE_A",
+      "total_amount_raw": "28000000000",
+      "transfer_count": 1,
+      "tx_hashes": [
+        "73706c6974303000000000000000000000000000000000000000000000000000"
+      ]
+    },
+    {
+      "from": "SCAM",
+      "tainted_amount_raw": "10000000000",
+      "to": "MULE_B",
+      "total_amount_raw": "10000000000",
+      "transfer_count": 1,
+      "tx_hashes": [
+        "73706c6974303100000000000000000000000000000000000000000000000000"
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "address": "DEPOSIT",
+      "depth": 2,
+      "is_terminal": false,
+      "pruned_amount_raw": "0",
+      "tainted_amount_raw": "28000000000",
+      "termination_reason": null
+    },
+    {
+      "address": "HOT",
+      "depth": 2,
+      "is_terminal": true,
+      "pruned_amount_raw": "0",
+      "tainted_amount_raw": "37991002891",
+      "termination_reason": "SERVICE_BOUNDARY"
+    },
+    {
+      "address": "MULE_A",
+      "depth": 1,
+      "is_terminal": false,
+      "pruned_amount_raw": "0",
+      "tainted_amount_raw": "28000000000",
+      "termination_reason": null
+    },
+    {
+      "address": "MULE_B",
+      "depth": 1,
+      "is_terminal": false,
+      "pruned_amount_raw": "0",
+      "tainted_amount_raw": "10000000000",
+      "termination_reason": null
+    },
+    {
+      "address": "SCAM",
+      "depth": 0,
+      "is_terminal": false,
+      "pruned_amount_raw": "2000000000",
+      "tainted_amount_raw": "40000000000",
+      "termination_reason": null
+    }
+  ],
+  "patterns": [
+    {
+      "metrics": {
+        "sender_count": 10,
+        "transfer_count": 10
+      },
+      "severity": "LOW",
+      "subject": "DEPOSIT",
+      "type": "FAN_IN"
+    },
+    {
+      "metrics": {
+        "fastest_seconds": 1800,
+        "median_seconds": 1920,
+        "occurrences": 3
+      },
+      "severity": "LOW",
+      "subject": "SCAM",
+      "type": "RAPID_TRANSFER"
+    }
+  ],
+  "report": {
+    "disclaimer_count": 6,
+    "evidence_hashes": 5,
+    "headline": "Traced value from SCAM reached Golden Exchange, confirmed by a named dataset. A KYC or freeze request naming the addresses and hashes in this report may identify the receiving account.",
+    "risk_headline": "The suspect address scored 33 of 100 (MEDIUM) at 0.82 confidence. Leading signal: Funds held for a median of 1920 seconds before onward transfer. Review alongside the evidence below."
+  },
+  "risk": [
+    {
+      "address": "DEPOSIT",
+      "band": "MEDIUM",
+      "confidence": 0.925,
+      "config_version": "risk-weights-v1.0",
+      "not_evaluated": [
+        "darknet_contact",
+        "high_risk_jurisdiction_vasp",
+        "no_legitimate_activity",
+        "victim_count"
+      ],
+      "score": 37,
+      "signals": [
+        {
+          "name": "chain_hopping",
+          "points": 0.0
+        },
+        {
+          "name": "cross_case_match",
+          "points": 0.0
+        },
+        {
+          "name": "dormancy_burst",
+          "points": 0.0
+        },
+        {
+          "name": "fan_in",
+          "points": 2.41
+        },
+        {
+          "name": "fan_out",
+          "points": 0.0
+        },
+        {
+          "name": "mixer_interaction",
+          "points": 0.0
+        },
+        {
+          "name": "pass_through_ratio",
+          "points": 8.0
+        },
+        {
+          "name": "peel_chain",
+          "points": 0.0
+        },
+        {
+          "name": "rapid_transfer",
+          "points": 11.88
+        },
+        {
+          "name": "sanctioned_contact",
+          "points": 0.0
+        },
+        {
+          "name": "single_use_pattern",
+          "points": 0.0
+        },
+        {
+          "name": "structuring",
+          "points": 0.0
+        },
+        {
+          "name": "value_magnitude",
+          "points": 3.71
+        },
+        {
+          "name": "velocity",
+          "points": 3.12
+        },
+        {
+          "name": "wallet_age",
+          "points": 8.0
+        }
+      ]
+    },
+    {
+      "address": "HOT",
+      "band": "LOW",
+      "confidence": 1.0,
+      "config_version": "risk-weights-v1.0",
+      "not_evaluated": [
+        "chain_hopping",
+        "darknet_contact",
+        "dormancy_burst",
+        "fan_in",
+        "fan_out",
+        "high_risk_jurisdiction_vasp",
+        "no_legitimate_activity",
+        "pass_through_ratio",
+        "peel_chain",
+        "rapid_transfer",
+        "single_use_pattern",
+        "structuring",
+        "velocity",
+        "victim_count",
+        "wallet_age"
+      ],
+      "score": 4,
+      "signals": [
+        {
+          "name": "cross_case_match",
+          "points": 0.0
+        },
+        {
+          "name": "mixer_interaction",
+          "points": 0.0
+        },
+        {
+          "name": "sanctioned_contact",
+          "points": 0.0
+        },
+        {
+          "name": "value_magnitude",
+          "points": 3.82
+        }
+      ]
+    },
+    {
+      "address": "MULE_A",
+      "band": "MEDIUM",
+      "confidence": 0.82,
+      "config_version": "risk-weights-v1.0",
+      "not_evaluated": [
+        "darknet_contact",
+        "high_risk_jurisdiction_vasp",
+        "no_legitimate_activity",
+        "victim_count"
+      ],
+      "score": 37,
+      "signals": [
+        {
+          "name": "chain_hopping",
+          "points": 0.0
+        },
+        {
+          "name": "cross_case_match",
+          "points": 0.0
+        },
+        {
+          "name": "dormancy_burst",
+          "points": 0.0
+        },
+        {
+          "name": "fan_in",
+          "points": 0.0
+        },
+        {
+          "name": "fan_out",
+          "points": 0.0
+        },
+        {
+          "name": "mixer_interaction",
+          "points": 0.0
+        },
+        {
+          "name": "pass_through_ratio",
+          "points": 8.0
+        },
+        {
+          "name": "peel_chain",
+          "points": 0.0
+        },
+        {
+          "name": "rapid_transfer",
+          "points": 11.76
+        },
+        {
+          "name": "sanctioned_contact",
+          "points": 0.0
+        },
+        {
+          "name": "single_use_pattern",
+          "points": 5.0
+        },
+        {
+          "name": "structuring",
+          "points": 0.0
+        },
+        {
+          "name": "value_magnitude",
+          "points": 3.71
+        },
+        {
+          "name": "velocity",
+          "points": 0.9
+        },
+        {
+          "name": "wallet_age",
+          "points": 8.0
+        }
+      ]
+    },
+    {
+      "address": "MULE_B",
+      "band": "MEDIUM",
+      "confidence": 0.82,
+      "config_version": "risk-weights-v1.0",
+      "not_evaluated": [
+        "darknet_contact",
+        "high_risk_jurisdiction_vasp",
+        "no_legitimate_activity",
+        "victim_count"
+      ],
+      "score": 37,
+      "signals": [
+        {
+          "name": "chain_hopping",
+          "points": 0.0
+        },
+        {
+          "name": "cross_case_match",
+          "points": 0.0
+        },
+        {
+          "name": "dormancy_burst",
+          "points": 0.0
+        },
+        {
+          "name": "fan_in",
+          "points": 0.0
+        },
+        {
+          "name": "fan_out",
+          "points": 0.0
+        },
+        {
+          "name": "mixer_interaction",
+          "points": 0.0
+        },
+        {
+          "name": "pass_through_ratio",
+          "points": 8.0
+        },
+        {
+          "name": "peel_chain",
+          "points": 0.0
+        },
+        {
+          "name": "rapid_transfer",
+          "points": 11.73
+        },
+        {
+          "name": "sanctioned_contact",
+          "points": 0.0
+        },
+        {
+          "name": "single_use_pattern",
+          "points": 5.0
+        },
+        {
+          "name": "structuring",
+          "points": 0.0
+        },
+        {
+          "name": "value_magnitude",
+          "points": 3.33
+        },
+        {
+          "name": "velocity",
+          "points": 0.9
+        },
+        {
+          "name": "wallet_age",
+          "points": 8.0
+        }
+      ]
+    },
+    {
+      "address": "SCAM",
+      "band": "MEDIUM",
+      "confidence": 0.82,
+      "config_version": "risk-weights-v1.0",
+      "not_evaluated": [
+        "darknet_contact",
+        "high_risk_jurisdiction_vasp",
+        "no_legitimate_activity",
+        "victim_count"
+      ],
+      "score": 33,
+      "signals": [
+        {
+          "name": "chain_hopping",
+          "points": 0.0
+        },
+        {
+          "name": "cross_case_match",
+          "points": 0.0
+        },
+        {
+          "name": "dormancy_burst",
+          "points": 0.0
+        },
+        {
+          "name": "fan_in",
+          "points": 0.0
+        },
+        {
+          "name": "fan_out",
+          "points": 0.0
+        },
+        {
+          "name": "mixer_interaction",
+          "points": 0.0
+        },
+        {
+          "name": "pass_through_ratio",
+          "points": 8.0
+        },
+        {
+          "name": "peel_chain",
+          "points": 0.0
+        },
+        {
+          "name": "rapid_transfer",
+          "points": 11.74
+        },
+        {
+          "name": "sanctioned_contact",
+          "points": 0.0
+        },
+        {
+          "name": "single_use_pattern",
+          "points": 0.0
+        },
+        {
+          "name": "structuring",
+          "points": 0.0
+        },
+        {
+          "name": "value_magnitude",
+          "points": 3.84
+        },
+        {
+          "name": "velocity",
+          "points": 1.81
+        },
+        {
+          "name": "wallet_age",
+          "points": 8.0
+        }
+      ]
+    }
+  ],
+  "run": {
+    "degradations": 0,
+    "status": "COMPLETED"
+  },
+  "trace": {
+    "anchor_tx_hash": "76696374696d3030000000000000000000000000000000000000000000000000",
+    "anchored": true,
+    "edge_count": 5,
+    "node_count": 5,
+    "pruned_branches": [
+      {
+        "from": "SCAM",
+        "reason": "BELOW_THRESHOLD",
+        "to": "DUST"
+      }
+    ],
+    "root": "SCAM",
+    "total_traced_raw": "40000000000",
+    "unavailable": []
+  }
+}
