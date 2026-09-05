@@ -2,6 +2,12 @@
 
 **Target: `docker compose up` and the system runs (NFR-11).** Everything else is future.
 
+**Verified 2026-09-05** on macOS/arm64, Docker 29.7.2, Compose v5.5.0. Five containers reach
+`healthy`, the first-run sequence below completes, an investigation runs end to end through
+nginx and produces a downloadable PDF, data survives `docker compose down && up`, and every
+retrieval came from the committed fixture cache — `SELECT is_fixture, count(*) FROM
+evidence_items` returned `t|4` and nothing else, so no provider was contacted.
+
 ---
 
 ## 1. Topology
@@ -90,7 +96,12 @@ docker compose exec api python -m app.cli create-admin   # interactive, prompts 
 open http://localhost
 ```
 
-Seven commands, one of them interactive.
+Seven commands, one of them interactive. **All seven were run and verified**; the order above
+is the tested one.
+
+The worker starts before the schema exists — that is expected, and it waits rather than
+exiting. `docker compose logs worker` shows *"waiting for the database schema; run alembic
+upgrade head"* until the migration lands, then *"worker ready"*.
 
 **`create-admin` is interactive and mandatory.** There are no seeded credentials in any build —
 not in development, not in the demo image ([SECURITY.md §2](SECURITY.md)).

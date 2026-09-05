@@ -29,7 +29,7 @@ phase whose dependencies are unmet · if you must deviate from the architecture,
 | 11 | Investigation reports | ☑ | 8 |
 | 12 | Security hardening | ☑ | 2, 10 |
 | 13 | Testing & QA | ◐ | all |
-| 14 | Deployment | ☐ | 10 |
+| 14 | Deployment | ☑ | 10 |
 | 15 | SIH demo hardening | ☐ | 13, 14 |
 
 ---
@@ -861,7 +861,7 @@ than an empty result when it has no detectors, and importing the package registe
 
 ---
 
-## Phase 14 — Deployment ☐
+## Phase 14 — Deployment ☑
 **Depends on:** 10
 
 **Goal.** `docker compose up` and it works (NFR-11).
@@ -875,6 +875,37 @@ backup and restore documentation · CI image publication.
 healthchecks pass · only `web` is exposed · data persists across restarts · **the system runs
 fully with the network disconnected in fixture mode** · no secret is baked into any image.
 **DoD.** [DEPLOYMENT.md](DEPLOYMENT.md) is accurate; a teammate can deploy from it unaided.
+
+**Verified 2026-09-05** on macOS/arm64, Docker 29.7.2, Compose v5.5.0 — the first time this
+stack had ever been run. Five containers healthy, the seven-command first-run sequence
+completed, an investigation ran end to end through nginx and produced a downloadable
+hash-verified PDF, and data survived `docker compose down && docker compose up -d`.
+
+**Offline operation is evidenced, not assumed.** After a full run,
+`SELECT is_fixture, count(*) FROM evidence_items` returned `t|4` — every retrieval came from
+the committed fixture cache and no provider was contacted. (An `internal: true` network was
+tried as a stronger test and rejected: it also disables Docker's embedded DNS and host port
+publishing, so it isolates far more than the internet.)
+
+**Seven bugs, none of which a developer machine could have shown.** Four were found by static
+inspection before Docker was installed, three only by running it:
+
+| Bug | Consequence |
+|---|---|
+| `config/`, `data/`, `alembic/` and the fixture cache were never `COPY`'d | Every step of the documented first-run sequence failed |
+| Data files located with `Path(__file__).parents[n]` | Resolves to `/config/...` once installed; the risk stage and `load-labels` both broke |
+| `psycopg2` undeclared | `alembic upgrade head` — the first command — failed with `ModuleNotFoundError` |
+| `/data/reports` not created or owned | A volume mounts over it root-owned; the first report write failed |
+| Worker queried `analysis_runs` at boot | Exited 1 on every fresh deployment, before migrations could run |
+| Worker exited on a BRPOP timeout | One transient Redis blip became a restart loop |
+| `web` healthcheck used `localhost` | Resolves to `::1` first while nginx listens on IPv4; the service never became healthy |
+| nginx resolved `api` once at startup | Recreating the api container left every request 502 until nginx was also restarted |
+
+The image is now multi-stage, runs as uid 10001, carries no secret in any layer (checked with
+`docker history` and `docker inspect`), and only `web` publishes a port.
+
+`backend/tests/test_deployment.py` pins the static half of this — 22 tests over the Dockerfile,
+compose file and path resolution — so the four bugs findable without a daemon stay found.
 
 ---
 
