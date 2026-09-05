@@ -6,8 +6,8 @@
 
 ## Current phase
 
-> ## DEMO-READY — PHASE 14 (deployment) NEXT
-> **Phases 0–8, 11 and 12 are complete, and 13 is largely done. The product works end to end, offline, through the
+> ## DEMO-READY — PHASE 15 (SIH demo hardening) NEXT
+> **Phases 0–8 and 11–14 are complete; 13 is largely done. The product works end to end, offline, through the
 > UI.** Phase 10 (frontend) has its investigation workspace; Phase 7 stays ◐ for one reason
 > only, below.
 >
@@ -45,13 +45,15 @@
 > secrets redacted from logs. **Sign-in is single-factor** — TOTP MFA is specified and not
 > built, which LIMITATIONS.md §11 now states.
 >
-> Remaining phases: **14 (deployment)**, 15 (SIH demo hardening), and the tail of 13 —
-> Playwright E2E, which needs the compose stack from 14 to drive. Phase 9 (ML) is optional and
-> first on the cut list.
+> **`docker compose up` works and has been run.** Five containers healthy, the seven-command
+> first-run sequence completed, an investigation end to end through nginx producing a
+> hash-verified PDF, data surviving `down`/`up`, and every retrieval served from the fixture
+> cache (`evidence_items.is_fixture` was `t` for all of them — no provider contacted). Eight
+> bugs were found and fixed in the process, none of which a developer machine could have shown.
+> Verified on macOS/arm64, Docker 29.7.2. `docs/DEPLOYMENT.md` records the tested sequence.
 >
-> **Docker is not installed on this machine**, so Phase 14's acceptance criterion —
-> `docker compose up` reaching five healthy containers — cannot be verified here. The images and
-> configuration can be written and the builds checked; the run cannot.
+> Remaining: **15 (SIH demo hardening)** and the tail of 13 — Playwright E2E, which can now
+> drive the compose stack. Phase 9 (ML) is optional and first on the cut list.
 > Update the phase table in `IMPLEMENTATION_PLAN.md` when a phase completes, and update this
 > banner when the phase changes.
 >
