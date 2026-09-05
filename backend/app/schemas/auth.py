@@ -11,7 +11,11 @@ class LoginRequest(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    # Optional, so `POST /auth/refresh` with a body of `{}` is valid. That is what a
+    # browser sends after a page reload: it kept nothing, and the token travels in the
+    # httpOnly cookie instead. Requiring the field here rejected the exact client the
+    # endpoint's recovery path was written for.
+    refresh_token: str | None = None
 
 
 class UserOut(BaseModel):

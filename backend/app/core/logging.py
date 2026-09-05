@@ -12,8 +12,11 @@ from typing import Any
 
 request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 
+# The closing quote of a JSON key has to be allowed before the separator. Without it
+# `{"secret_key": "s3cr3t"}` passed straight through — and JSON is this application's log
+# format, so a logged settings dict was exactly the leak the redactor exists to prevent.
 _SECRET_KEY_PATTERN = re.compile(
-    r"(?i)\b([\w.]*(?:secret|password|token|api_key|apikey)[\w.]*)\b\s*[=:]\s*'?\"?([^\s,'\"}]+)"
+    r"(?i)\b([\w.]*(?:secret|password|token|api_key|apikey)[\w.]*)\b['\"]?\s*[=:]\s*['\"]?([^\s,'\"}]+)"
 )
 
 
