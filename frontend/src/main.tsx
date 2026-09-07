@@ -7,6 +7,7 @@ import { App } from './App'
 import { ApiError } from './api/client'
 import { AuthProvider } from './auth'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { applyTheme, readTheme } from './lib/theme'
 import '@fontsource-variable/inter'
 import '@fontsource-variable/jetbrains-mono'
 import './index.css'
@@ -20,6 +21,9 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+// Before first paint, so a dark preference never flashes light.
+applyTheme(readTheme())
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
