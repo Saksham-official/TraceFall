@@ -7,6 +7,8 @@ import { App } from './App'
 import { ApiError } from './api/client'
 import { AuthProvider } from './auth'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import '@fontsource-variable/inter'
+import '@fontsource-variable/jetbrains-mono'
 import './index.css'
 
 const queryClient = new QueryClient({
