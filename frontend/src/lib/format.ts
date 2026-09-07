@@ -6,13 +6,13 @@ export function truncateAddress(address: string, head = 6, tail = 7): string {
   return `${address.slice(0, head)}…${address.slice(-tail)}`
 }
 
-const EXPLORERS: Record<ChainCode, string> = {
-  TRON: 'https://tronscan.org/#/address/',
-  ETHEREUM: 'https://etherscan.io/address/',
+const EXPLORERS: Record<ChainCode, { address: string; tx: string }> = {
+  TRON: { address: 'https://tronscan.org/#/address/', tx: 'https://tronscan.org/#/transaction/' },
+  ETHEREUM: { address: 'https://etherscan.io/address/', tx: 'https://etherscan.io/tx/' },
 }
 
-export function explorerUrl(chain: ChainCode, address: string): string {
-  return `${EXPLORERS[chain]}${address}`
+export function explorerUrl(chain: ChainCode, value: string, kind: 'address' | 'tx' = 'address'): string {
+  return `${EXPLORERS[chain][kind]}${value}`
 }
 
 const INR = new Intl.NumberFormat('en-IN', {

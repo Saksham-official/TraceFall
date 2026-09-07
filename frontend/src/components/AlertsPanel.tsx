@@ -66,7 +66,7 @@ export function AlertsPanel() {
   const items = alerts.data?.items ?? []
 
   return (
-    <Card className="p-0">
+    <Card padding="none">
       <h2 className="border-b border-[var(--border)] px-3 py-2 font-semibold">
         Alerts
         {items.length > 0 && (

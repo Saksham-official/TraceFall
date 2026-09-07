@@ -25,14 +25,20 @@ export function RiskBadge({ score, band, confidence, size = 'sm', className = ''
       role="img"
       aria-label={label}
       data-band={band}
-      className={`risk-${band} inline-flex items-baseline gap-1.5 rounded border px-2 py-0.5 ${
-        size === 'lg' ? 'text-base' : 'text-xs'
+      className={`risk-${band} inline-flex items-baseline rounded-[var(--radius-sm)] border whitespace-nowrap ${
+        size === 'lg' ? 'gap-2 px-2.5 py-1' : 'gap-1.5 px-1.5 py-0.5 text-xs'
       } ${className}`}
     >
-      <span className={size === 'lg' ? 'text-xl font-semibold' : 'font-semibold'}>{rounded}</span>
-      <span className="font-medium tracking-wide uppercase">{band}</span>
+      <span className={`text-num font-semibold ${size === 'lg' ? 'text-xl leading-6' : ''}`}>
+        {rounded}
+      </span>
+      <span className={`font-semibold tracking-wide uppercase ${size === 'lg' ? 'text-xs' : 'text-[0.6875rem]'}`}>
+        {band}
+      </span>
       {typeof confidence === 'number' && (
-        <span className="opacity-80">conf. {confidence.toFixed(2)}</span>
+        <span className={`text-num font-normal opacity-75 ${size === 'lg' ? 'text-xs' : 'text-[0.6875rem]'}`}>
+          conf. {confidence.toFixed(2)}
+        </span>
       )}
     </span>
   )

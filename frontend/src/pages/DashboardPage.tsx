@@ -145,7 +145,7 @@ export function DashboardPage() {
                 </EmptyState>
               )
             ) : (
-              <Card className="p-0">
+              <Card padding="none">
                 <ul>
                   {items.map((item) => (
                     <CaseRow key={item.id} item={item} />
