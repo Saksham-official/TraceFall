@@ -10,10 +10,12 @@ import { DashboardPage } from './pages/DashboardPage'
 import { InvestigationPage } from './pages/InvestigationPage'
 import { LoginPage } from './pages/LoginPage'
 import { NewCasePage } from './pages/NewCasePage'
+import { WelcomePage } from './pages/WelcomePage'
 
 export function App() {
   return (
     <Routes>
+      <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route
         element={
