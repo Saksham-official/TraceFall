@@ -18,21 +18,45 @@
 import cytoscape from 'cytoscape'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
-import type { GraphNode, GraphPayload } from '../api/types'
-import { truncateAddress } from '../lib/format'
-import { Banner } from './ui'
-
-const BAND_COLOUR: Record<string, string> = {
-  LOW: '#cbd5e1',
-  MEDIUM: '#fcd34d',
-  HIGH: '#fb923c',
-  CRITICAL: '#f87171',
-}
+import type { ChainCode, GraphNode, GraphPayload } from '../api/types'
+import { formatRaw, sharePercent, terminationLabel, truncateAddress } from '../lib/format'
+import { AddressChip } from './AddressChip'
+import { RiskBadge } from './RiskBadge'
+import { TierBadge } from './TierBadge'
+import {
+  CrosshairIcon,
+  MaximizeIcon,
+  SearchIcon,
+  XIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from './icons'
+import { Badge, Banner, IconButton, Meter } from './ui'
 
 const TIER_BORDER_STYLE: Record<string, string> = {
   CONFIRMED: 'solid',
   PROBABLE: 'dashed',
   UNATTRIBUTED: 'dotted',
+}
+
+/** The canvas cannot read CSS classes, so the theme's tokens are read once per theme. */
+function readPalette() {
+  const css = getComputedStyle(document.documentElement)
+  const get = (name: string) => css.getPropertyValue(name).trim()
+  return {
+    band: {
+      LOW: get('--graph-low'),
+      MEDIUM: get('--graph-medium'),
+      HIGH: get('--graph-high'),
+      CRITICAL: get('--graph-critical'),
+    } as Record<string, string>,
+    nodeBorder: get('--graph-node-border'),
+    edge: get('--graph-edge'),
+    edgeDim: get('--graph-edge-dim'),
+    label: get('--graph-label'),
+    accent: get('--accent'),
+    bg: get('--graph-bg'),
+  }
 }
 
 export interface GraphViewProps {
@@ -42,84 +66,145 @@ export interface GraphViewProps {
   onSelect: (address: string | null) => void
 }
 
+type Hover = { address: string; x: number; y: number } | null
+
 export function GraphView({ graph, riskByAddress = {}, selected, onSelect }: GraphViewProps) {
   const host = useRef<HTMLDivElement>(null)
+  const frame = useRef<HTMLDivElement>(null)
   const instance = useRef<cytoscape.Core | null>(null)
   const [canvasFailed, setCanvasFailed] = useState(false)
+  const [hover, setHover] = useState<Hover>(null)
+  const [filter, setFilter] = useState('')
+  // Bumped when the theme attribute changes, so the canvas re-reads its palette.
+  const [themeVersion, setThemeVersion] = useState(0)
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => setThemeVersion((v) => v + 1))
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+    return () => observer.disconnect()
+  }, [])
+
+  const chain = (graph.asset_key?.split(':')[0] as ChainCode | undefined) ?? 'TRON'
+  const decimals = graph.edges.find((edge) => edge.decimals !== null)?.decimals ?? null
+  const symbol = graph.edges.find((edge) => edge.asset_symbol)?.asset_symbol ?? null
+  const rootAmount = graph.nodes.find((node) => node.is_root)?.tainted_amount_raw ?? null
 
   const elements = useMemo(() => {
-    const nodes = graph.nodes.map((node) => ({
-      data: {
-        id: node.address,
-        label: nodeLabel(node),
-        depth: node.depth ?? 0,
-        colour: BAND_COLOUR[riskByAddress[node.address]?.band ?? 'LOW'] ?? BAND_COLOUR.LOW,
-        border: TIER_BORDER_STYLE[node.attribution_tier ?? 'UNATTRIBUTED'] ?? 'dotted',
-        borderWidth: node.attribution_tier === 'UNATTRIBUTED' || !node.attribution_tier ? 1 : 3,
-        shape: node.is_root ? 'round-rectangle' : 'ellipse',
-      },
-    }))
-    const edges = graph.edges.map((edge) => ({
-      data: {
-        id: `${edge.from}->${edge.to}`,
-        source: edge.from,
-        target: edge.to,
-        label: edge.transfer_count > 1 ? `${edge.transfer_count}×` : '',
-      },
-    }))
-    return [...nodes, ...edges]
-  }, [graph, riskByAddress])
+    const palette = readPalette()
+    // Width is a visual weight only — never an amount path — so a float is acceptable here.
+    const maxEdge = Math.max(1, ...graph.edges.map((edge) => Number(edge.tainted_amount_raw) || 0))
+    const nodes = graph.nodes.map((node) => {
+      const share = node.taint_share ?? 0
+      const tier = node.attribution_tier ?? 'UNATTRIBUTED'
+      return {
+        data: {
+          id: node.address,
+          label: nodeLabel(node),
+          depth: node.depth ?? 0,
+          colour: palette.band[riskByAddress[node.address]?.band ?? 'LOW'] ?? palette.band.LOW,
+          border: TIER_BORDER_STYLE[tier] ?? 'dotted',
+          borderWidth: tier === 'UNATTRIBUTED' ? 1.5 : 3,
+          borderColour: palette.nodeBorder,
+          shape: node.is_root ? 'round-rectangle' : node.is_terminal ? 'round-hexagon' : 'ellipse',
+          size: node.is_root ? 36 : 18 + Math.round(Math.min(1, Math.max(0, share)) * 18),
+        },
+      }
+    })
+    const edges = graph.edges.map((edge) => {
+      const weight = Math.log1p(Number(edge.tainted_amount_raw) || 0) / Math.log1p(maxEdge)
+      return {
+        data: {
+          id: `${edge.from}->${edge.to}`,
+          source: edge.from,
+          target: edge.to,
+          label: edge.transfer_count > 1 ? `${edge.transfer_count}×` : '',
+          width: 1 + weight * 3,
+        },
+      }
+    })
+    return { palette, list: [...nodes, ...edges] }
+    // themeVersion is a deliberate dependency: it forces a palette re-read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graph, riskByAddress, themeVersion])
 
   useEffect(() => {
     if (!host.current) return
+    const { palette, list } = elements
     let cy: cytoscape.Core
     try {
       cy = cytoscape({
         container: host.current,
-        elements,
+        elements: list,
         style: ([
           {
             selector: 'node',
             style: {
               label: 'data(label)',
               'background-color': 'data(colour)',
-              'border-color': '#0f172a',
+              'border-color': 'data(borderColour)',
               'border-style': 'data(border)',
               'border-width': 'data(borderWidth)',
               shape: 'data(shape)',
+              width: 'data(size)',
+              height: 'data(size)',
+              'font-family': 'JetBrains Mono Variable, JetBrains Mono, ui-monospace, monospace',
               'font-size': 9,
               'text-valign': 'bottom',
-              'text-margin-y': 4,
-              'text-wrap': 'wrap',
-              'text-max-width': '110px',
-              color: '#334155',
-              width: 26,
-              height: 26,
+              'text-margin-y': 5,
+              'text-wrap': 'ellipsis',
+              'text-max-width': '120px',
+              color: palette.label,
+              'transition-property': 'opacity',
+              'transition-duration': 120,
             },
           },
           {
             selector: 'node:selected',
-            style: { 'border-color': '#1d4ed8', 'border-width': 4, 'overlay-opacity': 0.1 },
+            style: {
+              'border-color': palette.accent,
+              'border-width': 4,
+              'overlay-color': palette.accent,
+              'overlay-opacity': 0.12,
+              'overlay-padding': 6,
+            },
           },
           {
             selector: 'edge',
             style: {
               label: 'data(label)',
-              width: 1.6,
-              'line-color': '#94a3b8',
-              'target-arrow-color': '#94a3b8',
+              width: 'data(width)',
+              'line-color': palette.edge,
+              'target-arrow-color': palette.edge,
               'target-arrow-shape': 'triangle',
               'curve-style': 'bezier',
-              'arrow-scale': 0.9,
+              'arrow-scale': 0.8,
               'font-size': 8,
-              color: '#64748b',
+              color: palette.label,
+              'text-background-color': palette.bg,
+              'text-background-opacity': 1,
+              'text-background-padding': '2px',
+              'transition-property': 'opacity, line-color',
+              'transition-duration': 120,
             },
           },
+          { selector: '.dim', style: { opacity: 0.18 } },
+          {
+            selector: 'edge.path',
+            style: { 'line-color': palette.accent, 'target-arrow-color': palette.accent, width: 3 },
+          },
+          { selector: 'node.path', style: { 'border-color': palette.accent } },
         ] as unknown) as cytoscape.StylesheetStyle[],
-        layout: { name: 'breadthfirst', directed: true, spacingFactor: 1.3, padding: 24 },
+        layout: {
+          name: 'breadthfirst',
+          directed: true,
+          roots: graph.root ? [graph.root] : undefined,
+          spacingFactor: 1.15,
+          padding: 28,
+        },
         // Read-only: an investigator drags to look, never to edit the evidence.
         autoungrabify: true,
-        wheelSensitivity: 0.2,
+        minZoom: 0.2,
+        maxZoom: 4,
       })
     } catch {
       // No canvas — an old browser, a hardened one, or a headless renderer. The address
@@ -128,21 +213,73 @@ export function GraphView({ graph, riskByAddress = {}, selected, onSelect }: Gra
       setCanvasFailed(true)
       return
     }
+
     cy.on('select', 'node', (event) => onSelect(event.target.id() as string))
     cy.on('unselect', 'node', () => onSelect(null))
+
+    // Hover dims everything but the node's neighbourhood and shows the tooltip.
+    cy.on('mouseover', 'node', (event) => {
+      const node = event.target as cytoscape.NodeSingular
+      const keep = node.closedNeighborhood()
+      cy.elements().not(keep).addClass('dim')
+      const pos = node.renderedPosition()
+      setHover({ address: node.id(), x: pos.x, y: pos.y })
+      if (host.current) host.current.style.cursor = 'pointer'
+    })
+    cy.on('mouseout', 'node', () => {
+      cy.elements().removeClass('dim')
+      setHover(null)
+      if (host.current) host.current.style.cursor = ''
+    })
+    cy.on('pan zoom', () => setHover(null))
+
     instance.current = cy
     return () => {
       cy.destroy()
       instance.current = null
     }
-  }, [elements, onSelect])
+  }, [elements, graph.root, onSelect])
 
+  // Selection: mark the node and light the path back to the suspect.
   useEffect(() => {
     const cy = instance.current
     if (!cy) return
+    cy.elements().removeClass('path')
     cy.nodes().unselect()
-    if (selected) cy.getElementById(selected).select()
+    if (!selected) return
+    const node = cy.getElementById(selected)
+    if (node.empty()) return
+    node.select()
+    node.predecessors().addClass('path')
   }, [selected])
+
+  function zoom(factor: number) {
+    const cy = instance.current
+    if (!cy) return
+    cy.zoom({ level: cy.zoom() * factor, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } })
+  }
+  function fit() {
+    instance.current?.animate({ fit: { eles: instance.current.elements(), padding: 28 }, duration: 200 })
+  }
+  function centerRoot() {
+    const cy = instance.current
+    if (!cy || !graph.root) return
+    const root = cy.getElementById(graph.root)
+    if (root.empty()) return
+    cy.animate({ center: { eles: root }, zoom: Math.max(cy.zoom(), 1.2), duration: 200 })
+    onSelect(graph.root)
+  }
+
+  const selectedNode = selected ? graph.nodes.find((node) => node.address === selected) : undefined
+  const hoverNode = hover ? graph.nodes.find((node) => node.address === hover.address) : undefined
+  const query = filter.trim().toLowerCase()
+  const listed = query
+    ? graph.nodes.filter(
+        (node) =>
+          node.address.toLowerCase().includes(query) ||
+          node.entity_name?.toLowerCase().includes(query),
+      )
+    : graph.nodes
 
   return (
     <div className="space-y-3">
@@ -168,52 +305,236 @@ export function GraphView({ graph, riskByAddress = {}, selected, onSelect }: Gra
         </Banner>
       )}
 
-      <div className={`grid gap-3 ${canvasFailed ? '' : 'lg:grid-cols-[1fr_280px]'}`}>
-        <div
-          ref={host}
-          hidden={canvasFailed}
-          role="img"
-          aria-label={`Fund flow graph: ${graph.node_count} addresses, ${graph.edge_count} flows. The address list beside this graph carries the same information as text.`}
-          className="h-[420px] rounded border border-[var(--border)] bg-[var(--surface)]"
-        />
-        <div className="space-y-1">
-          <h3 className="text-xs font-semibold tracking-wide text-[var(--muted)] uppercase">
-            Addresses in this trace
-          </h3>
-          <ul className="max-h-[392px] space-y-1 overflow-y-auto pr-1">
-            {graph.nodes.map((node) => {
-              const risk = riskByAddress[node.address]
-              const active = node.address === selected
-              return (
-                <li key={node.address}>
-                  <button
-                    type="button"
-                    onClick={() => onSelect(active ? null : node.address)}
-                    aria-pressed={active}
-                    className={`w-full rounded border px-2 py-1.5 text-left text-xs ${
-                      active
-                        ? 'border-[var(--accent)] bg-[var(--surface-2)]'
-                        : 'border-[var(--border)] bg-[var(--surface)]'
-                    }`}
-                  >
-                    <span className="block font-mono">{truncateAddress(node.address)}</span>
-                    <span className="block text-[var(--muted)]">
-                      hop {node.depth ?? 0}
-                      {node.is_root && ' · suspect'}
-                      {node.entity_name && ` · ${node.entity_name}`}
-                      {node.attribution_tier && ` · ${node.attribution_tier}`}
-                      {risk && ` · risk ${risk.score} ${risk.band}`}
-                    </span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+      <div className={`grid gap-3 ${canvasFailed ? '' : 'lg:grid-cols-[minmax(0,1fr)_19rem]'}`}>
+        <div ref={frame} hidden={canvasFailed} className="relative min-w-0">
+          <div
+            ref={host}
+            role="img"
+            aria-label={`Fund flow graph: ${graph.node_count} addresses, ${graph.edge_count} flows. The address list beside this graph carries the same information as text.`}
+            className="h-[clamp(420px,60vh,720px)] rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--graph-bg)]"
+          />
+
+          <div className="absolute top-2 right-2 flex flex-col gap-1 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] p-1 shadow-[var(--shadow-sm)]">
+            <IconButton label="Zoom in" size="sm" onClick={() => zoom(1.25)}>
+              <ZoomInIcon />
+            </IconButton>
+            <IconButton label="Zoom out" size="sm" onClick={() => zoom(0.8)}>
+              <ZoomOutIcon />
+            </IconButton>
+            <IconButton label="Fit to view" size="sm" onClick={fit}>
+              <MaximizeIcon />
+            </IconButton>
+            <IconButton label="Centre on the suspect address" size="sm" onClick={centerRoot}>
+              <CrosshairIcon />
+            </IconButton>
+          </div>
+
+          <div className="absolute bottom-2 left-2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)]/95 px-2.5 py-1.5 text-[0.6875rem] text-[var(--muted)] shadow-[var(--shadow-sm)] backdrop-blur">
+            <Legend />
+          </div>
+
+          {hover && hoverNode && (
+            <div
+              role="tooltip"
+              className="pointer-events-none absolute z-10 max-w-64 -translate-x-1/2 rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-2 text-xs shadow-[var(--shadow-md)]"
+              style={{ left: hover.x, top: hover.y + 22 }}
+            >
+              <p className="font-mono">{truncateAddress(hoverNode.address, 8, 8)}</p>
+              {hoverNode.entity_name && (
+                <p className="mt-0.5 font-medium">
+                  {hoverNode.attribution_tier === 'PROBABLE' ? 'likely ' : ''}
+                  {hoverNode.entity_name}
+                </p>
+              )}
+              <p className="text-meta mt-0.5">
+                hop {hoverNode.depth ?? 0}
+                {formatRaw(hoverNode.tainted_amount_raw, decimals) &&
+                  ` · ${formatRaw(hoverNode.tainted_amount_raw, decimals)} ${symbol ?? ''}`}
+                {hoverNode.termination_reason && ` · ${terminationLabel(hoverNode.termination_reason)}`}
+              </p>
+            </div>
+          )}
         </div>
+
+        <aside className="flex min-w-0 flex-col gap-3">
+          {selectedNode && (
+            <NodeDetail
+              node={selectedNode}
+              chain={chain}
+              decimals={decimals}
+              symbol={symbol}
+              rootAmount={rootAmount}
+              risk={riskByAddress[selectedNode.address]}
+              onClear={() => onSelect(null)}
+            />
+          )}
+
+          <div className="flex min-h-0 flex-col rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)]">
+            <h3 className="text-label px-3 pt-2.5 pb-1.5">Addresses in this trace</h3>
+            <div className="border-b border-[var(--border)] px-2 pb-2">
+              <label className="relative block">
+                <span className="sr-only">Filter addresses</span>
+                <SearchIcon className="pointer-events-none absolute top-1/2 left-2 h-3 w-3 -translate-y-1/2 text-[var(--muted)]" />
+                <input
+                  type="search"
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  placeholder="Filter by address or entity"
+                  className="h-7 w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] pl-7 text-xs placeholder:text-[var(--muted)]/70 focus:border-[var(--accent)] focus:outline-none"
+                />
+              </label>
+            </div>
+            <ul className="max-h-[420px] overflow-y-auto p-1.5">
+              {listed.map((node) => {
+                const risk = riskByAddress[node.address]
+                const active = node.address === selected
+                return (
+                  <li key={node.address}>
+                    <button
+                      type="button"
+                      onClick={() => onSelect(active ? null : node.address)}
+                      aria-pressed={active}
+                      className={`transition-ui w-full rounded-[var(--radius-sm)] border px-2 py-1.5 text-left text-xs ${
+                        active
+                          ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
+                          : 'border-transparent hover:bg-[var(--surface-2)]'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="block flex-1 truncate font-mono">
+                          {truncateAddress(node.address)}
+                        </span>
+                        {node.is_root && (
+                          <Badge tone="accent" size="xs">
+                            suspect
+                          </Badge>
+                        )}
+                        {risk && (
+                          <Badge band={risk.band as 'LOW'} size="xs">
+                            {risk.band}
+                          </Badge>
+                        )}
+                      </span>
+                      <span className="text-meta mt-0.5 block truncate">
+                        hop {node.depth ?? 0}
+                        {node.entity_name && ` · ${node.entity_name}`}
+                        {node.attribution_tier && ` · ${node.attribution_tier}`}
+                        {risk && ` · risk ${risk.score}`}
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+              {listed.length === 0 && (
+                <li className="text-meta px-2 py-3 text-center">No address matches.</li>
+              )}
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+  )
+}
+
+function NodeDetail({
+  node,
+  chain,
+  decimals,
+  symbol,
+  rootAmount,
+  risk,
+  onClear,
+}: {
+  node: GraphNode
+  chain: ChainCode
+  decimals: number | null
+  symbol: string | null
+  rootAmount: string | null
+  risk?: { score: number; band: string }
+  onClear: () => void
+}) {
+  const amount = formatRaw(node.tainted_amount_raw, decimals)
+  const share = rootAmount ? sharePercent(node.tainted_amount_raw, rootAmount) : null
+  const stop = terminationLabel(node.termination_reason)
+  return (
+    <section
+      aria-label="Selected address"
+      className="fade-up rounded-[var(--radius-lg)] border border-[var(--accent)] bg-[var(--surface)] p-3 shadow-[var(--shadow-sm)]"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-label">Selected address</span>
+        <IconButton label="Clear selection" size="sm" onClick={onClear}>
+          <XIcon />
+        </IconButton>
+      </div>
+      <div className="mt-1">
+        <AddressChip address={node.address} chain={chain} size="md" />
       </div>
 
-      <Legend />
-    </div>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        {node.is_root && (
+          <Badge tone="accent" size="xs">
+            suspect address
+          </Badge>
+        )}
+        {node.attribution_tier && (
+          <TierBadge tier={node.attribution_tier} confidence={node.attribution_confidence} />
+        )}
+        {node.entity_name && (
+          <span className="text-secondary font-semibold">
+            {node.entity_name}
+            {node.entity_type && (
+              <span className="text-meta ml-1 font-normal uppercase">{node.entity_type}</span>
+            )}
+          </span>
+        )}
+      </div>
+
+      <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+        <div>
+          <dt className="text-meta">Hop</dt>
+          <dd className="text-num font-medium">{node.depth ?? 0}</dd>
+        </div>
+        <div>
+          <dt className="text-meta">Attributed value</dt>
+          <dd className="text-num font-medium">
+            {amount ? `${amount} ${symbol ?? ''}` : `${node.tainted_amount_raw} raw`}
+            {share !== null && <span className="text-meta ml-1">({share}%)</span>}
+          </dd>
+        </div>
+        {risk && (
+          <div className="col-span-2">
+            <dt className="text-meta mb-1">Risk</dt>
+            <dd className="flex items-center gap-2">
+              <RiskBadge score={risk.score} band={risk.band as 'LOW'} />
+              <Meter value={risk.score} band={risk.band as 'LOW'} className="flex-1" />
+            </dd>
+          </div>
+        )}
+        {stop && (
+          <div className="col-span-2">
+            <dt className="text-meta">Trace ended</dt>
+            <dd className="font-medium">{stop}</dd>
+          </div>
+        )}
+        {node.first_reached_at && (
+          <div className="col-span-2">
+            <dt className="text-meta">First reached</dt>
+            <dd className="text-num">{new Date(node.first_reached_at).toLocaleString()}</dd>
+          </div>
+        )}
+        {(node.omitted_successors > 0 || node.pruned_branches.length > 0) && (
+          <div className="col-span-2">
+            <dt className="text-meta">Not followed</dt>
+            <dd>
+              {node.pruned_branches.length > 0 && `${node.pruned_branches.length} pruned branch(es)`}
+              {node.pruned_branches.length > 0 && node.omitted_successors > 0 && ' · '}
+              {node.omitted_successors > 0 && `${node.omitted_successors} omitted from the picture`}
+            </dd>
+          </div>
+        )}
+      </dl>
+    </section>
   )
 }
 
@@ -230,19 +551,34 @@ function nodeLabel(node: GraphNode): string {
 
 function Legend() {
   return (
-    <dl className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--muted)]">
+    <dl className="flex flex-wrap gap-x-4 gap-y-1">
       <div className="flex items-center gap-1.5">
         <dt className="font-medium">Border:</dt>
         <dd>solid = confirmed · dashed = likely · dotted = unattributed</dd>
       </div>
       <div className="flex items-center gap-1.5">
         <dt className="font-medium">Fill:</dt>
-        <dd>risk band — grey low, amber medium, orange high, red critical</dd>
+        <dd className="flex items-center gap-1.5">
+          <Swatch colour="var(--graph-low)" /> low
+          <Swatch colour="var(--graph-medium)" /> medium
+          <Swatch colour="var(--graph-high)" /> high
+          <Swatch colour="var(--graph-critical)" /> critical
+        </dd>
       </div>
       <div className="flex items-center gap-1.5">
-        <dt className="font-medium">Square:</dt>
-        <dd>the suspect address</dd>
+        <dt className="font-medium">Shape:</dt>
+        <dd>square = suspect · hexagon = trace ended · size = attributed share</dd>
       </div>
     </dl>
+  )
+}
+
+function Swatch({ colour }: { colour: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-block h-2.5 w-2.5 rounded-full border border-[var(--graph-node-border)]/60"
+      style={{ backgroundColor: colour }}
+    />
   )
 }
