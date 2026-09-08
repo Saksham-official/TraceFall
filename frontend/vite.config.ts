@@ -5,7 +5,8 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    proxy: { '/api': 'http://localhost:8000' },
+    // The api container publishes no host port; nginx on :80 is the only way in.
+    proxy: { '/api': 'http://localhost:80' },
   },
   test: {
     environment: 'jsdom',
