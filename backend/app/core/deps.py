@@ -2,12 +2,12 @@
 
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import Annotated
+from typing import Annotated, Any
 
 import jwt
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
+from sqlalchemy import Select, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import Forbidden, NotFound, Unauthenticated
@@ -83,6 +83,21 @@ async def get_accessible_case(case_id: uuid.UUID, user: User, session: AsyncSess
     if assigned is None:
         raise NotFound("Case not found")
     return case
+
+
+def visible_cases[S: Select[Any]](stmt: S, user: User) -> S:
+    """Narrow a query to the cases this user may see. Case isolation at the query layer.
+
+    Admins and analysts read globally — an I4C analyst correlating across a department's
+    reports is the reason the role exists. Everyone else sees what they own or are
+    assigned. Shared so that one policy governs every query, rather than each caller
+    reimplementing it and one of them getting it wrong.
+    """
+    if user.role in _GLOBAL_READERS:
+        return stmt
+    return stmt.outerjoin(CaseAssignment, CaseAssignment.case_id == Case.id).where(
+        or_(Case.owner_id == user.id, CaseAssignment.user_id == user.id)
+    )
 
 
 def get_request_id(request: Request) -> str:

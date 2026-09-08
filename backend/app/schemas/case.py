@@ -69,3 +69,32 @@ class TimelineEventOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class LinkedCaseOut(BaseModel):
+    case_id: uuid.UUID
+    case_number: str
+    title: str
+    reported_loss_inr: Decimal | None
+
+
+class SharedAddressOut(BaseModel):
+    """One address this case has in common with others the caller can already open."""
+
+    address: str
+    chain: str
+    case_count: int
+    combined_reported_loss_inr: Decimal | None
+    cases: list[LinkedCaseOut]
+
+
+class CorrelationOut(BaseModel):
+    shared_addresses: list[SharedAddressOut]
+    # Stated rather than left for the reader to assume: a shared address is an observed
+    # fact, "the same fraud" is the investigator's inference. Confirmed exchange and mixer
+    # addresses are excluded, so a link here is never just "both touched Binance".
+    note: str = (
+        "A shared address is an on-chain fact, not a conclusion that these cases are the "
+        "same fraud. Confirmed exchange, mixer, bridge and merchant addresses are excluded, "
+        "because they appear in almost every trace. Only cases you can already open are shown."
+    )

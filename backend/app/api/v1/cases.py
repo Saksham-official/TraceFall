@@ -3,18 +3,28 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response
-from sqlalchemy import Select, func, or_, select
+from sqlalchemy import func, or_, select
 
-from app.core.deps import CurrentUser, SessionDep, get_accessible_case, require_role
-from app.db.models.case import Case, CaseAssignment, CaseNote, CaseTimelineEvent
+from app.core.deps import (
+    CurrentUser,
+    SessionDep,
+    get_accessible_case,
+    require_role,
+    visible_cases,
+)
+from app.db import correlation
+from app.db.models.case import Case, CaseNote, CaseTimelineEvent
 from app.db.models.enums import CaseStatus, Priority, UserRole
 from app.db.models.user import User
 from app.schemas.case import (
     CaseCreate,
     CaseOut,
     CaseUpdate,
+    CorrelationOut,
+    LinkedCaseOut,
     NoteCreate,
     NoteOut,
+    SharedAddressOut,
     TimelineEventOut,
 )
 from app.schemas.common import Page, decode_cursor, encode_cursor
@@ -24,16 +34,6 @@ router = APIRouter(prefix="/cases", tags=["cases"])
 Investigator = Annotated[
     User, Depends(require_role(UserRole.ADMIN, UserRole.INVESTIGATOR, UserRole.ANALYST))
 ]
-_GLOBAL_READERS = {UserRole.ADMIN, UserRole.ANALYST}
-
-
-def _visible(stmt: Select[tuple[Case]], user: User) -> Select[tuple[Case]]:
-    """Case isolation applied at the query layer, not by hiding UI elements."""
-    if user.role in _GLOBAL_READERS:
-        return stmt
-    return stmt.outerjoin(CaseAssignment, CaseAssignment.case_id == Case.id).where(
-        or_(Case.owner_id == user.id, CaseAssignment.user_id == user.id)
-    )
 
 
 async def _record(
@@ -70,7 +70,7 @@ async def list_cases(
     limit: int = Query(default=25, ge=1, le=100),
     cursor: str | None = None,
 ) -> Page[CaseOut]:
-    stmt = _visible(select(Case), user)
+    stmt = visible_cases(select(Case), user)
     if status:
         stmt = stmt.where(Case.status == status)
     if priority:
@@ -158,3 +158,31 @@ async def delete_case(
     await session.delete(case)
     await session.commit()
     return Response(status_code=204)
+
+
+@router.get("/{case_id}/correlations", response_model=CorrelationOut)
+async def get_correlations(
+    case_id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> CorrelationOut:
+    """Addresses this case shares with other cases the caller can already open.
+
+    The same fraud rarely produces one report. Ten victims paying into ten different
+    suspect wallets that all sweep into one deposit address is one investigation, and one
+    freeze request, rather than ten of each.
+    """
+    await get_accessible_case(case_id, user, session)
+    shared = await correlation.shared_addresses(
+        session, case_id, visible_cases(select(Case.id), user)
+    )
+    return CorrelationOut(
+        shared_addresses=[
+            SharedAddressOut(
+                address=s.address,
+                chain=s.chain,
+                case_count=s.case_count,
+                combined_reported_loss_inr=s.combined_reported_loss_inr,
+                cases=[LinkedCaseOut(**vars(c)) for c in s.cases],
+            )
+            for s in shared
+        ]
+    )

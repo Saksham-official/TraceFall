@@ -40,6 +40,7 @@ async def _case_owned_by_a(client: AsyncClient, session: AsyncSession) -> tuple[
         ("get", "/addresses", None),
         ("post", "/addresses", {"address": USDT_TRC20}),
         ("get", "/analyses", None),
+        ("get", "/correlations", None),
         ("post", "/analyses", {"address_id": 1}),
     ],
 )
