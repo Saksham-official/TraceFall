@@ -22,8 +22,8 @@ from app.db.models.analysis import AnalysisRun
 from app.db.models.enums import ReportFormat, ReportType, UserRole
 from app.db.models.output import Report
 from app.db.models.user import User
-from app.reports import generator
-from app.schemas.report import ReportCreate, ReportOut
+from app.reports import assemble, freeze_request, generator
+from app.schemas.report import FreezeRequestOut, ReportCreate, ReportOut
 
 router = APIRouter(tags=["reports"])
 
@@ -134,3 +134,28 @@ async def _accessible_report(report_id: uuid.UUID, user: User, session: SessionD
 
 
 __all__ = ["ReportType", "router"]
+
+
+@router.get("/analyses/{run_id}/freeze-request", response_model=FreezeRequestOut)
+async def get_freeze_request(
+    run_id: uuid.UUID, user: Investigator, session: SessionDep
+) -> FreezeRequestOut:
+    """The letter this analysis supports, as text to review and send.
+
+    Generated on read rather than stored: it is a draft an investigator edits, not a
+    record of what was sent, and a stored copy would drift from the analysis behind it.
+    """
+    run = await session.get(AnalysisRun, run_id)
+    if run is None:
+        raise NotFound("Analysis run not found")
+    await get_accessible_case(run.case_id, user, session)
+
+    data = await assemble.gather(session, run_id)
+    to = freeze_request.recipient(data)
+    return FreezeRequestOut(
+        recipient_name=to["name"],
+        recipient_address=to["address"],
+        tier=to["tier"],
+        confidence=to["confidence"],
+        text=freeze_request.render(data),
+    )

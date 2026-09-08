@@ -29,3 +29,15 @@ class ReportOut(BaseModel):
     content_verified: bool | None = None
 
     model_config = {"from_attributes": True}
+
+
+class FreezeRequestOut(BaseModel):
+    """A draft KYC and freeze request for the investigating officer to review and send."""
+
+    recipient_name: str | None
+    recipient_address: str | None
+    # Carried out of the letter as its own field so a UI can badge it. The tier is never
+    # collapsed into the recipient name, here or anywhere else.
+    tier: str
+    confidence: float | None
+    text: str
