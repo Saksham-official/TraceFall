@@ -8,13 +8,22 @@ import { CHAIN_CODES } from '../api/types'
 import type { CaseAddress, ChainCode } from '../api/types'
 import { AddressChip } from '../components/AddressChip'
 import {
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  CheckCircleIcon,
+  ChevronRightIcon,
+  GitBranchIcon,
+  InfoIcon,
+} from '../components/icons'
+import {
   Banner,
   Button,
   Card,
   ErrorNotice,
   Field,
   Select,
-  Spinner,
+  Skeleton,
+  Steps,
   TextArea,
   TextInput,
   errorMessage,
@@ -22,6 +31,7 @@ import {
 import { sniffAddress } from '../lib/addressFormat'
 
 const ADVANCED_DEFAULTS = { max_depth: 5, time_window_days: 90, taint_threshold: 0.01 }
+const STEPS = ['Case', 'Suspect address', 'Analysis']
 
 export function AddressIntakePage() {
   const { caseId = '' } = useParams()
@@ -77,29 +87,59 @@ export function AddressIntakePage() {
     )
   }
 
-  if (caseQuery.isPending) return <Spinner label="Loading case…" />
+  if (caseQuery.isPending) {
+    return (
+      <div role="status" aria-label="Loading case" className="mx-auto flex max-w-2xl flex-col gap-4">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-7 w-2/3" />
+        <Skeleton className="h-80" />
+      </div>
+    )
+  }
   if (caseQuery.isError) return <ErrorNotice error={caseQuery.error} />
 
+  const validHint = !fieldError && sniff.ok
+
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4">
+    <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <div>
-        <p className="text-xs tracking-wide text-[var(--muted)] uppercase">
-          Step 2 of 2 — suspect address
-        </p>
-        <h1 className="text-lg font-semibold">
-          {caseQuery.data.case_number} · {caseQuery.data.title}
-        </h1>
+        <Link
+          to={`/cases/${caseId}`}
+          className="text-secondary inline-flex items-center gap-1 text-[var(--muted)] hover:text-[var(--text)]"
+        >
+          <ArrowLeftIcon /> {caseQuery.data.case_number}
+        </Link>
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+          <h1 className="text-h1">{added ? 'Start analysis' : 'Suspect address'}</h1>
+          <Steps steps={STEPS} current={added ? 2 : 1} />
+        </div>
+        <p className="text-secondary mt-1 truncate text-[var(--muted)]">{caseQuery.data.title}</p>
       </div>
 
       {added ? (
         <>
-          <Card className="flex flex-col gap-2">
-            <p className="font-semibold">Address added</p>
-            <AddressChip
-              address={added.address}
-              displayAddress={added.display_address}
-              chain={added.chain}
-            />
+          <Card>
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 text-[var(--success-fg)]">
+                <CheckCircleIcon className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="font-semibold">Address added</p>
+                <div className="mt-2">
+                  <AddressChip
+                    address={added.address}
+                    displayAddress={added.display_address}
+                    chain={added.chain}
+                    size="lg"
+                  />
+                </div>
+                <p className="text-secondary mt-2 text-[var(--muted)]">
+                  The analysis will trace {advanced.max_depth} hops over {advanced.time_window_days}{' '}
+                  days, following branches above {(advanced.taint_threshold * 100).toFixed(0)}% of
+                  the traced value.
+                </p>
+              </div>
+            </div>
           </Card>
 
           {/* FR-07: surfaced before analysis starts, not after. */}
@@ -114,7 +154,10 @@ export function AddressIntakePage() {
               <ul className="mt-2 flex flex-wrap gap-2">
                 {added.cross_case_matches.map((match) => (
                   <li key={match.case_id}>
-                    <Link to={`/cases/${match.case_id}`} className="font-mono underline">
+                    <Link
+                      to={`/cases/${match.case_id}`}
+                      className="font-mono font-medium underline underline-offset-2"
+                    >
                       {match.case_number}
                     </Link>
                   </li>
@@ -125,26 +168,35 @@ export function AddressIntakePage() {
 
           {startAnalysis.isError && <ErrorNotice error={startAnalysis.error} />}
 
-          <div className="flex gap-2">
-            <Button onClick={beginAnalysis} disabled={startAnalysis.isPending}>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Link to={`/cases/${caseId}`}>
+              <Button variant="ghost">Go to case without analysing</Button>
+            </Link>
+            <Button
+              onClick={beginAnalysis}
+              loading={startAnalysis.isPending}
+              icon={<GitBranchIcon />}
+            >
               {startAnalysis.isPending ? 'Starting…' : 'Start analysis'}
             </Button>
-            <Link to={`/cases/${caseId}`}>
-              <Button variant="secondary">Go to case without analysing</Button>
-            </Link>
           </div>
         </>
       ) : (
         <Card>
-          <form onSubmit={submitAddress} className="flex flex-col gap-3" noValidate>
+          <form onSubmit={submitAddress} className="flex flex-col gap-5" noValidate>
             <Field
               label="Address"
               required
               error={fieldError}
               hint={
-                !fieldError && sniff.ok
-                  ? `Looks like a valid ${sniff.chain} address. The checksum is verified when you add it.`
-                  : 'TRON or Ethereum. The chain is detected from the format.'
+                validHint ? (
+                  <span className="inline-flex items-center gap-1 text-[var(--success-fg)]">
+                    <CheckCircleIcon className="h-3 w-3" />
+                    Looks like a valid {sniff.chain} address. The checksum is verified when you add it.
+                  </span>
+                ) : (
+                  'TRON or Ethereum. The chain is detected from the format.'
+                )
               }
             >
               {(props) => (
@@ -167,6 +219,7 @@ export function AddressIntakePage() {
                 <Select
                   {...props}
                   value={chain}
+                  className="sm:w-64"
                   onChange={(e) => setChain(e.target.value as ChainCode | '')}
                 >
                   <option value="">
@@ -181,43 +234,49 @@ export function AddressIntakePage() {
               )}
             </Field>
 
-            <p className="text-[var(--muted)]">
-              These two fields substantially improve the trace — they anchor it to the victim&rsquo;s
-              actual transaction.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Field label="Amount victim sent">
-                {(props) => (
-                  <TextInput
-                    {...props}
-                    inputMode="decimal"
-                    value={amount}
-                    placeholder="40000"
-                    onChange={(e) => setAmount(e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field label="Asset">
-                {(props) => (
-                  <TextInput
-                    {...props}
-                    maxLength={32}
-                    value={asset}
-                    onChange={(e) => setAsset(e.target.value)}
-                  />
-                )}
-              </Field>
-              <Field label="Date and time sent">
-                {(props) => (
-                  <TextInput
-                    {...props}
-                    type="datetime-local"
-                    value={sentAt}
-                    onChange={(e) => setSentAt(e.target.value)}
-                  />
-                )}
-              </Field>
-            </div>
+            <fieldset className="rounded-[var(--radius)] border border-[var(--accent-soft)] bg-[var(--accent-soft)]/40 p-4">
+              <legend className="text-label px-1 text-[var(--accent)]">Anchor the trace</legend>
+              <p className="text-secondary mb-3 flex items-start gap-1.5 text-[var(--text-2)]">
+                <InfoIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />
+                These two fields substantially improve the trace — they anchor it to the
+                victim&rsquo;s actual transaction.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="Amount victim sent">
+                  {(props) => (
+                    <TextInput
+                      {...props}
+                      inputMode="decimal"
+                      className="text-num"
+                      value={amount}
+                      placeholder="40000"
+                      onChange={(e) => setAmount(e.target.value)}
+                    />
+                  )}
+                </Field>
+                <Field label="Asset">
+                  {(props) => (
+                    <TextInput
+                      {...props}
+                      maxLength={32}
+                      className="font-mono"
+                      value={asset}
+                      onChange={(e) => setAsset(e.target.value)}
+                    />
+                  )}
+                </Field>
+                <Field label="Date and time sent">
+                  {(props) => (
+                    <TextInput
+                      {...props}
+                      type="datetime-local"
+                      value={sentAt}
+                      onChange={(e) => setSentAt(e.target.value)}
+                    />
+                  )}
+                </Field>
+              </div>
+            </fieldset>
 
             <Field label="Notes">
               {(props) => (
@@ -230,19 +289,24 @@ export function AddressIntakePage() {
               )}
             </Field>
 
-            <details className="rounded border border-[var(--border)] p-2">
-              <summary className="cursor-pointer font-medium">
-                Advanced — depth {advanced.max_depth}, window {advanced.time_window_days} days,
-                threshold {(advanced.taint_threshold * 100).toFixed(0)}%
+            <details className="group rounded-[var(--radius)] border border-[var(--border)]">
+              <summary className="flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm font-medium select-none [&::-webkit-details-marker]:hidden">
+                <ChevronRightIcon className="transition-transform group-open:rotate-90" />
+                Advanced
+                <span className="text-meta font-normal">
+                  depth {advanced.max_depth} · window {advanced.time_window_days} days · threshold{' '}
+                  {(advanced.taint_threshold * 100).toFixed(0)}%
+                </span>
               </summary>
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                <Field label="Max depth">
+              <div className="grid gap-4 border-t border-[var(--border)] p-3 sm:grid-cols-3">
+                <Field label="Max depth" hint="Hops to follow, 1–10.">
                   {(props) => (
                     <TextInput
                       {...props}
                       type="number"
                       min={1}
                       max={10}
+                      className="text-num"
                       value={advanced.max_depth}
                       onChange={(e) =>
                         setAdvanced({ ...advanced, max_depth: Number(e.target.value) })
@@ -250,13 +314,14 @@ export function AddressIntakePage() {
                     />
                   )}
                 </Field>
-                <Field label="Time window (days)">
+                <Field label="Time window (days)" hint="Transfers outside it are ignored.">
                   {(props) => (
                     <TextInput
                       {...props}
                       type="number"
                       min={1}
                       max={365}
+                      className="text-num"
                       value={advanced.time_window_days}
                       onChange={(e) =>
                         setAdvanced({ ...advanced, time_window_days: Number(e.target.value) })
@@ -264,7 +329,7 @@ export function AddressIntakePage() {
                     />
                   )}
                 </Field>
-                <Field label="Taint threshold">
+                <Field label="Taint threshold" hint="Branches below this share are pruned.">
                   {(props) => (
                     <TextInput
                       {...props}
@@ -272,6 +337,7 @@ export function AddressIntakePage() {
                       min={0.001}
                       max={1}
                       step={0.001}
+                      className="text-num"
                       value={advanced.taint_threshold}
                       onChange={(e) =>
                         setAdvanced({ ...advanced, taint_threshold: Number(e.target.value) })
@@ -283,18 +349,23 @@ export function AddressIntakePage() {
             </details>
 
             {addAddress.isError && !serverFieldError && (
-              <Banner tone="error" title={errorMessage(addAddress.error)} />
+              <Banner tone="error" title={errorMessage(addAddress.error)} compact />
             )}
 
-            <div className="flex items-center gap-2">
-              <Button type="submit" disabled={addAddress.isPending || !sniff.ok}>
-                {addAddress.isPending ? 'Adding…' : 'Add address'}
-              </Button>
+            <div className="flex items-center justify-between gap-2 border-t border-[var(--border)] pt-4">
               <Link to={`/cases/${caseId}`}>
                 <Button type="button" variant="ghost">
                   Skip for now
                 </Button>
               </Link>
+              <Button
+                type="submit"
+                loading={addAddress.isPending}
+                disabled={!sniff.ok}
+                icon={<ArrowRightIcon />}
+              >
+                {addAddress.isPending ? 'Adding…' : 'Add address'}
+              </Button>
             </div>
           </form>
         </Card>

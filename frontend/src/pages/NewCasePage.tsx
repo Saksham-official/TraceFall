@@ -5,7 +5,19 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useCreateCase } from '../api/queries'
 import { PRIORITIES } from '../api/types'
 import type { Priority } from '../api/types'
-import { ErrorNotice, Button, Card, Field, Select, TextArea, TextInput } from '../components/ui'
+import { ArrowLeftIcon, ArrowRightIcon } from '../components/icons'
+import {
+  Button,
+  Card,
+  ErrorNotice,
+  Field,
+  Select,
+  Steps,
+  TextArea,
+  TextInput,
+} from '../components/ui'
+
+const STEPS = ['Case', 'Suspect address', 'Analysis']
 
 export function NewCasePage() {
   const navigate = useNavigate()
@@ -40,14 +52,25 @@ export function NewCasePage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4">
+    <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <div>
-        <p className="text-xs tracking-wide text-[var(--muted)] uppercase">Step 1 of 2 — case</p>
-        <h1 className="text-lg font-semibold">New case</h1>
+        <Link
+          to="/"
+          className="text-secondary inline-flex items-center gap-1 text-[var(--muted)] hover:text-[var(--text)]"
+        >
+          <ArrowLeftIcon /> Cases
+        </Link>
+        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
+          <h1 className="text-h1">New case</h1>
+          <Steps steps={STEPS} current={0} />
+        </div>
+        <p className="text-secondary mt-1 text-[var(--muted)]">
+          A case holds one investigation. The suspect address comes next.
+        </p>
       </div>
 
       <Card>
-        <form onSubmit={submit} className="flex flex-col gap-3" noValidate>
+        <form onSubmit={submit} className="flex flex-col gap-5" noValidate>
           <Field label="Title" required>
             {(props) => (
               <TextInput
@@ -62,12 +85,14 @@ export function NewCasePage() {
             )}
           </Field>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <fieldset className="grid gap-4 sm:grid-cols-2">
+            <legend className="text-label mb-3">References</legend>
             <Field label="NCRP reference">
               {(props) => (
                 <TextInput
                   {...props}
                   maxLength={64}
+                  className="font-mono"
                   value={form.ncrp_reference}
                   onChange={(e) => set('ncrp_reference')(e.target.value)}
                 />
@@ -78,12 +103,13 @@ export function NewCasePage() {
                 <TextInput
                   {...props}
                   maxLength={64}
+                  className="font-mono"
                   value={form.fir_reference}
                   onChange={(e) => set('fir_reference')(e.target.value)}
                 />
               )}
             </Field>
-          </div>
+          </fieldset>
 
           <Field label="Description" hint="No victim personal data. Reference numbers only.">
             {(props) => (
@@ -96,7 +122,8 @@ export function NewCasePage() {
             )}
           </Field>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <fieldset className="grid gap-4 sm:grid-cols-3">
+            <legend className="text-label mb-3">Incident</legend>
             <Field label="Reported loss (INR)">
               {(props) => (
                 <TextInput
@@ -105,6 +132,7 @@ export function NewCasePage() {
                   min="0"
                   step="1"
                   inputMode="numeric"
+                  className="text-num"
                   value={form.reported_loss_inr}
                   onChange={(e) => set('reported_loss_inr')(e.target.value)}
                 />
@@ -135,19 +163,19 @@ export function NewCasePage() {
                 </Select>
               )}
             </Field>
-          </div>
+          </fieldset>
 
           {create.isError && <ErrorNotice error={create.error} />}
 
-          <div className="flex items-center gap-2">
-            <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? 'Creating…' : 'Continue to address'}
-            </Button>
+          <div className="flex items-center justify-between gap-2 border-t border-[var(--border)] pt-4">
             <Link to="/">
               <Button type="button" variant="ghost">
                 Cancel
               </Button>
             </Link>
+            <Button type="submit" loading={create.isPending} icon={<ArrowRightIcon />}>
+              {create.isPending ? 'Creating…' : 'Continue to address'}
+            </Button>
           </div>
         </form>
       </Card>

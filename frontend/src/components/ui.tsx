@@ -558,3 +558,40 @@ export function Facts({
     </dl>
   )
 }
+
+/** A short numbered flow. The current step is bold; finished ones tick. */
+export function Steps({ steps, current }: { steps: string[]; current: number }) {
+  return (
+    <ol className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-label="Progress">
+      {steps.map((step, index) => {
+        const done = index < current
+        const active = index === current
+        return (
+          <li key={step} className="flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className={`text-num flex h-5 w-5 items-center justify-center rounded-full border text-[0.6875rem] font-semibold ${
+                done
+                  ? 'border-[var(--success-border)] bg-[var(--success-bg)] text-[var(--success-fg)]'
+                  : active
+                    ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-contrast)]'
+                    : 'border-[var(--border-strong)] text-[var(--muted)]'
+              }`}
+            >
+              {done ? <CheckCircleIcon className="h-3 w-3" /> : index + 1}
+            </span>
+            <span
+              className={`text-secondary ${active ? 'font-semibold' : 'text-[var(--muted)]'}`}
+              aria-current={active ? 'step' : undefined}
+            >
+              {step}
+            </span>
+            {index < steps.length - 1 && (
+              <span aria-hidden="true" className="h-px w-6 bg-[var(--border-strong)]" />
+            )}
+          </li>
+        )
+      })}
+    </ol>
+  )
+}
