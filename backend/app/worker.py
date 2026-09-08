@@ -54,6 +54,7 @@ from app.patterns.base import DETECTOR_VERSION, Subject, run_all
 from app.risk import engine as risk
 from app.risk import persistence as risk_store
 from app.risk.config import ENGINE_VERSION as RISK_VERSION
+from app.schemas.analysis import DEFAULT_TIME_WINDOW_DAYS
 from app.tracing import anchor as anchor_mod
 from app.tracing import persistence as trace_store
 from app.tracing.engine import trace
@@ -87,7 +88,7 @@ async def _retrieve(run: AnalysisRun, session: AsyncSession) -> AddressData:
     chain = await session.get(Chain, address.chain_id)
     if chain is None:
         raise RuntimeError(f"address {address.id} references a missing chain")
-    window = TimeWindow.last_days(int(run.params.get("time_window_days", 90)))
+    window = TimeWindow.last_days(int(run.params.get("time_window_days", DEFAULT_TIME_WINDOW_DAYS)))
 
     return await service.retrieve_address(
         chain.code,
@@ -384,7 +385,9 @@ async def _run_pipeline(run_id: uuid.UUID) -> None:
         address = await session.get(Address, run.root_address_id)
         chain_row = await session.get(Chain, address.chain_id) if address else None
         assert address is not None and chain_row is not None
-        window = TimeWindow.last_days(int(run.params.get("time_window_days", 90)))
+        window = TimeWindow.last_days(
+            int(run.params.get("time_window_days", DEFAULT_TIME_WINDOW_DAYS))
+        )
 
         run.stage = AnalysisStage.TRACING
         run.progress_pct = 40

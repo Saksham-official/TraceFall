@@ -30,7 +30,9 @@ import {
 } from '../components/ui'
 import { sniffAddress } from '../lib/addressFormat'
 
-const ADVANCED_DEFAULTS = { max_depth: 5, time_window_days: 90, taint_threshold: 0.01 }
+// Must match DEFAULT_* in backend/app/schemas/analysis.py — the demo runs on these,
+// and config/demo_addresses.yaml is captured for the same window.
+const ADVANCED_DEFAULTS = { max_depth: 5, time_window_days: 180, taint_threshold: 0.01 }
 const STEPS = ['Case', 'Suspect address', 'Analysis']
 
 export function AddressIntakePage() {
