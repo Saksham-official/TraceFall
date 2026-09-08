@@ -14,6 +14,7 @@ import type {
   CaseAddressCreate,
   CaseCreate,
   CaseStatus,
+  Correlations,
   GraphPayload,
   Health,
   Page,
@@ -33,6 +34,7 @@ export const keys = {
   caseAddresses: (id: string) => ['case', id, 'addresses'] as const,
   caseAnalyses: (id: string) => ['case', id, 'analyses'] as const,
   caseTimeline: (id: string) => ['case', id, 'timeline'] as const,
+  caseCorrelations: (id: string) => ['case', id, 'correlations'] as const,
   analysis: (id: string) => ['analysis', id] as const,
 }
 
@@ -211,6 +213,13 @@ export function useOpenAlerts() {
   return useQuery({
     queryKey: alertKeys.open,
     queryFn: () => request<Page<Alert>>('/alerts?unacknowledged=true'),
+  })
+}
+
+export function useCaseCorrelations(caseId: string) {
+  return useQuery({
+    queryKey: keys.caseCorrelations(caseId),
+    queryFn: () => request<Correlations>(`/cases/${caseId}/correlations`),
   })
 }
 

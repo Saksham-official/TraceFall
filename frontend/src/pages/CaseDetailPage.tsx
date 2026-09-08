@@ -5,10 +5,11 @@ import {
   useCaseAddresses,
   useCaseAlerts,
   useCaseAnalyses,
+  useCaseCorrelations,
   useCaseTimeline,
   ANALYSIS_IS_ACTIVE,
 } from '../api/queries'
-import type { Alert, Analysis } from '../api/types'
+import type { Alert, Analysis, LinkedCase, SharedAddress } from '../api/types'
 import { canEdit, useAuth } from '../auth'
 import { AddressChip } from '../components/AddressChip'
 import {
@@ -18,6 +19,7 @@ import {
   BellIcon,
   ClockIcon,
   GitBranchIcon,
+  LinkIcon,
   PlusIcon,
   WalletIcon,
 } from '../components/icons'
@@ -66,6 +68,69 @@ function CaseAlerts({ caseId }: { caseId: string }) {
           </li>
         ))}
       </ul>
+    </Card>
+  )
+}
+
+/**
+ * Addresses this case has in common with others (cross-case correlation).
+ *
+ * Sits with the alerts rather than below the fold, because it is the same kind of thing:
+ * the system saying an investigator should not have to go looking. Ten victims paying into
+ * ten different wallets that all sweep into one deposit address is one investigation, and
+ * the only place that becomes visible is here.
+ *
+ * The caveat is rendered, not assumed. A shared address is an on-chain fact; "the same
+ * fraud" is the investigator's call, and confirmed exchange wallets are excluded upstream
+ * so a link here is never merely "both of these touched Binance".
+ */
+function LinkedCases({ caseId }: { caseId: string }) {
+  const correlations = useCaseCorrelations(caseId)
+  const shared = correlations.data?.shared_addresses ?? []
+  if (shared.length === 0) return null
+  return (
+    <Card padding="none">
+      <h2 className="flex items-center gap-2 border-b border-[var(--border)] px-4 py-2.5 text-h3">
+        <LinkIcon className="h-4 w-4 text-[var(--muted)]" />
+        Also seen in other cases
+        <span className="text-num ml-auto rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs font-medium text-[var(--muted)]">
+          {shared.length}
+        </span>
+      </h2>
+      <ul className="divide-y divide-[var(--border)]">
+        {shared.map((item: SharedAddress) => (
+          <li key={item.address} className="flex flex-col gap-2 px-4 py-3">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <AddressChip address={item.address} chain={item.chain} size="sm" />
+              <span className="text-secondary">
+                in {item.case_count} other {item.case_count === 1 ? 'case' : 'cases'}
+              </span>
+              {item.combined_reported_loss_inr && (
+                <span className="text-meta ml-auto">
+                  {formatInr(item.combined_reported_loss_inr)} reported across them
+                </span>
+              )}
+            </div>
+            <ul className="flex flex-wrap gap-x-3 gap-y-1">
+              {item.cases.map((linked: LinkedCase) => (
+                <li key={linked.case_id}>
+                  <Link
+                    to={`/cases/${linked.case_id}`}
+                    className="text-secondary transition-ui inline-flex items-center gap-1.5 rounded-[var(--radius)] border border-[var(--border)] px-2 py-1 hover:border-[var(--border-strong)] hover:bg-[var(--surface-2)]"
+                  >
+                    <span className="font-mono text-[var(--muted)]">{linked.case_number}</span>
+                    <span className="min-w-0 truncate">{linked.title}</span>
+                    <ArrowRightIcon className="h-3 w-3 shrink-0 text-[var(--muted)]" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+      <p className="text-meta border-t border-[var(--border)] px-4 py-2.5">
+        {correlations.data?.note}
+      </p>
     </Card>
   )
 }
@@ -309,6 +374,7 @@ export function CaseDetailPage() {
       </div>
 
       <CaseAlerts caseId={caseId} />
+      <LinkedCases caseId={caseId} />
       <Overview caseId={caseId} />
     </div>
   )

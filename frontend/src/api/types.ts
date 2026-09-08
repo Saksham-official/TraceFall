@@ -429,3 +429,24 @@ export interface Alert {
   acknowledged_by: number | null
   created_at: string
 }
+
+/** An address the viewed case has in common with another the user can already open. */
+export interface LinkedCase {
+  case_id: string
+  case_number: string
+  title: string
+  reported_loss_inr: string | null
+}
+
+export interface SharedAddress {
+  address: string
+  chain: ChainCode
+  case_count: number
+  combined_reported_loss_inr: string | null
+  cases: LinkedCase[]
+}
+
+export interface Correlations {
+  shared_addresses: SharedAddress[]
+  note: string
+}
