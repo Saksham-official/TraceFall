@@ -14,22 +14,26 @@ export function Tabs({
   tabs,
   label = 'Sections',
   initial,
+  value,
   onChange,
   sticky = false,
 }: {
   tabs: Tab[]
   label?: string
   initial?: string
+  /** Controlled mode: the parent owns the active tab. */
+  value?: string
   onChange?: (id: string) => void
   /** Keep the strip visible while a long panel scrolls. */
   sticky?: boolean
 }) {
   const base = useId()
-  const [active, setActive] = useState(initial ?? tabs[0].id)
+  const [inner, setInner] = useState(initial ?? tabs[0].id)
+  const active = value ?? inner
   const strip = useRef<HTMLDivElement>(null)
 
   function select(id: string) {
-    setActive(id)
+    setInner(id)
     onChange?.(id)
   }
 
