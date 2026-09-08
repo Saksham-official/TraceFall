@@ -219,7 +219,7 @@ export function AddressIntakePage() {
                 <Select
                   {...props}
                   value={chain}
-                  className="sm:w-64"
+                  className="sm:w-80"
                   onChange={(e) => setChain(e.target.value as ChainCode | '')}
                 >
                   <option value="">
