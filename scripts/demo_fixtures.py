@@ -60,6 +60,13 @@ DEMO_ADDRESSES = ROOT / "config" / "demo_addresses.yaml"
 _CHECK = "--check" in sys.argv
 os.environ["LIVE_MODE"] = "false" if _CHECK else "true"
 
+# `--check` is the pre-flight gate and runs on the presentation machine, where a clean
+# shell has no SECRET_KEY. It signs nothing and serves no request, so a throwaway value
+# beats greeting the operator with a pydantic traceback thirty seconds before the demo.
+# Never defaulted in the app itself (principle 10) — only here, and only offline.
+if _CHECK:
+    os.environ.setdefault("SECRET_KEY", "check-only-" + "0" * 32)
+
 import yaml  # noqa: E402
 
 from app.chains.base import TimeWindow  # noqa: E402
@@ -201,19 +208,20 @@ async def main() -> int:
     summaries = []
     for target in targets:
         print(f"\n{target['address']}  {target.get('role', '')}", flush=True)
-        summaries.append(
-            await walk(
-                ChainCode(target.get("chain", args.chain)),
-                target["address"],
-                args.days,
-                args.depth,
-                save=not args.check,
-            )
+        summary = await walk(
+            ChainCode(target.get("chain", args.chain)),
+            target["address"],
+            args.days,
+            args.depth,
+            save=not args.check,
         )
+        summary["expect"] = target.get("expect")
+        summaries.append(summary)
     await close_http_client()
 
     print(f"\nfixtures in {fixtures.fixture_root()}")
     gaps: list[str] = []
+    drifted: list[str] = []
     for summary in summaries:
         missing = summary["missing"]
         assert isinstance(missing, list)
@@ -229,7 +237,23 @@ async def main() -> int:
             print(f"      ends: {line}")
         for address in missing:
             print(f"      MISSING {address}")
+        expect = summary.get("expect")
+        if isinstance(expect, dict):
+            got = {"addresses": summary["addresses"], "edges": summary.get("edges", 0)}
+            if any(got[k] != v for k, v in expect.items()):
+                drifted.append(f"{summary['root']}: expected {expect}, got {got}")
+                print(f"      DRIFTED from expected {expect}")
 
+    if args.check and drifted:
+        print(
+            f"\n{len(drifted)} demo case(s) no longer trace what DEMO_SCRIPT.md describes:\n  "
+            + "\n  ".join(drifted)
+            + "\n\nA fixture is a frozen snapshot but the window slides, so a case can shrink "
+            "with nothing failing.\nEither widen `window_days`, recapture the fixtures, or "
+            "update `expect` in config/demo_addresses.yaml\nand say in the commit why the "
+            "number moved."
+        )
+        return 1
     if args.check and gaps:
         print(
             f"\n{len(gaps)} address(es) have no committed fixture; the demo would show "

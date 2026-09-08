@@ -18,15 +18,23 @@
 
 # The intake's own defaults. Nothing in the advanced panel is touched during the demo, so
 # these are what the analysis actually runs with — and what the fixtures are captured for.
-window_days: 90
+#
+# **The window is 180 days, not 90, because fixtures are frozen and the window is not.**
+# A fixture holds transfers with fixed timestamps; `last_days(N)` slides forward every day.
+# At 90 days the quiet root's only outbound transfer aged out two days after capture and
+# the trace silently collapsed to a single node — the demo degraded without anything
+# failing. Every case is identical from 120 days out, so 180 leaves months of headroom.
+# `expect` below is what makes a future drift loud instead of silent.
+window_days: 180
 max_depth: 5
 
 addresses:
   - address: TUcjuVB6RFvsMgE352Kdc3VHvFvteti97B
+    expect: {addresses: 24, edges: 27}
     chain: TRON
     role: headline
     why: >
-      Traces to 26 addresses over 30 edges in about seventy seconds, and reaches a second
+      Traces to 24 addresses over 27 edges in about seventy seconds, and reaches a second
       OFAC-designated address on the way. A real multi-hop flow to follow, not a single hop
       dressed up as one. It finishes PARTIAL with two branches DATA_UNAVAILABLE, and that
       is left alone on purpose: at depth five each fixture added widens the graph and
@@ -35,6 +43,7 @@ addresses:
       misleading one.
 
   - address: TWBAPzpPiZarfVsY2BLXeaLhNHurn4wkWG
+    expect: {addresses: 2, edges: 2}
     chain: TRON
     role: fan-out
     why: >
@@ -43,6 +52,7 @@ addresses:
       doing its job on real data, which is worth showing.
 
   - address: TLFqEhiG7RUSZ9x5iph99Ke5782dkgRnWf
+    expect: {addresses: 2, edges: 1}
     chain: TRON
     role: funds-not-moved
     why: >
@@ -51,6 +61,7 @@ addresses:
       not look" are different findings, and this is the first one.
 
   - address: TXoVNrqm11FFVKcF1vEND64gibVkr1HwAR
+    expect: {addresses: 5, edges: 4}
     chain: TRON
     role: honestly-unattributable
     why: >
