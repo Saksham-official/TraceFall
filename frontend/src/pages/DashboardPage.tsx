@@ -1,31 +1,35 @@
 import { useDeferredValue, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { useCases } from '../api/queries'
+import { useCases, useOpenAlerts } from '../api/queries'
 import { CASE_STATUSES, PRIORITIES } from '../api/types'
 import type { Case, CaseStatus, Priority } from '../api/types'
 import { canEdit, useAuth } from '../auth'
 import { AlertsPanel } from '../components/AlertsPanel'
 import {
+  ActivityIcon,
+  AlertTriangleIcon,
+  BellIcon,
+  FolderIcon,
+  PlusIcon,
+  SearchIcon,
+} from '../components/icons'
+import {
+  Badge,
   Button,
   Card,
   EmptyState,
   ErrorNotice,
-  Field,
+  PageHeader,
   Select,
-  Spinner,
+  Skeleton,
+  StatTile,
+  StatusPill,
   TextInput,
 } from '../components/ui'
 import { formatInr, relativeTime } from '../lib/format'
 
-/** Priority carries its word as well as its colour — never the colour alone (NFR-18). */
-function PriorityTag({ priority }: { priority: Priority }) {
-  return (
-    <span className={`risk-${priority} rounded border px-1.5 py-0.5 text-xs font-medium`}>
-      {priority}
-    </span>
-  )
-}
+const ROW_GRID = 'grid grid-cols-[7.5rem_5.5rem_1fr] sm:grid-cols-[7.5rem_5.5rem_6.5rem_1fr_7rem_6rem]'
 
 function CaseRow({ item }: { item: Case }) {
   const loss = formatInr(item.reported_loss_inr)
@@ -33,16 +37,36 @@ function CaseRow({ item }: { item: Case }) {
     <li className="border-b border-[var(--border)] last:border-b-0">
       <Link
         to={`/cases/${item.id}`}
-        className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-3 py-2 hover:bg-[var(--surface-2)]"
+        className={`${ROW_GRID} transition-ui items-center gap-x-3 px-4 py-2.5 hover:bg-[var(--surface-2)] focus-visible:bg-[var(--surface-2)]`}
       >
-        <span className="font-mono font-medium">{item.case_number}</span>
-        <PriorityTag priority={item.priority} />
-        <span className="text-xs tracking-wide text-[var(--muted)] uppercase">{item.status}</span>
-        <span className="w-full sm:w-auto sm:flex-1">{item.title}</span>
-        {loss && <span className="text-[var(--muted)] tabular-nums">{loss}</span>}
-        <span className="text-xs text-[var(--muted)]">{relativeTime(item.created_at)}</span>
+        <span className="font-mono text-[0.8125rem] font-medium">{item.case_number}</span>
+        {/* Priority carries its word as well as its colour — never the colour alone (NFR-18). */}
+        <Badge band={item.priority} size="xs" className="justify-self-start">
+          {item.priority}
+        </Badge>
+        <StatusPill status={item.status} className="hidden justify-self-start sm:inline-flex" />
+        <span className="col-span-3 truncate pt-1 sm:col-span-1 sm:pt-0">{item.title}</span>
+        <span className="text-num hidden text-right text-[var(--muted)] sm:block">{loss ?? '—'}</span>
+        <span className="text-meta hidden text-right sm:block">{relativeTime(item.created_at)}</span>
       </Link>
     </li>
+  )
+}
+
+function RowsSkeleton() {
+  return (
+    <div role="status" aria-label="Loading cases" className="divide-y divide-[var(--border)]">
+      {Array.from({ length: 6 }, (_, index) => (
+        <div key={index} className={`${ROW_GRID} items-center gap-x-3 px-4 py-3`}>
+          <Skeleton className="h-3.5 w-24" />
+          <Skeleton className="h-4 w-14" />
+          <Skeleton className="hidden h-4 w-16 sm:block" />
+          <Skeleton className="h-3.5 w-2/3" />
+          <Skeleton className="hidden h-3.5 w-16 justify-self-end sm:block" />
+          <Skeleton className="hidden h-3.5 w-12 justify-self-end sm:block" />
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -54,114 +78,160 @@ export function DashboardPage() {
   const q = useDeferredValue(search)
 
   const cases = useCases({ status, priority, q })
+  const alerts = useOpenAlerts()
   const items = cases.data?.items ?? []
   const filtered = status !== '' || priority !== '' || q !== ''
 
+  // Computed from the page in view — the API returns the most recent page, not totals.
+  const open = items.filter((item) => item.status === 'OPEN' || item.status === 'ANALYSING').length
+  const analysing = items.filter((item) => item.status === 'ANALYSING').length
+  const urgent = items.filter((item) => item.priority === 'HIGH' || item.priority === 'CRITICAL').length
+  const openAlerts = alerts.data?.items.length
+
+  const newCase = canEdit(user) ? (
+    <Link to="/cases/new">
+      <Button icon={<PlusIcon />}>New case</Button>
+    </Link>
+  ) : undefined
+
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-lg font-semibold">Cases</h1>
-        {canEdit(user) && (
-          <Link to="/cases/new" className="ml-auto">
-            <Button>+ New case</Button>
-          </Link>
-        )}
+    <div className="flex flex-col gap-5">
+      <PageHeader
+        title="Cases"
+        description="Each case holds one investigation: a suspect address, its analysis runs, and the report."
+        actions={newCase}
+      />
+
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <StatTile
+          label="Open cases"
+          value={cases.isPending ? <Skeleton className="h-6 w-10" /> : open}
+          hint={filtered ? 'in the filtered view' : 'in view'}
+          icon={<FolderIcon className="h-4 w-4" />}
+        />
+        <StatTile
+          label="Analysing now"
+          value={cases.isPending ? <Skeleton className="h-6 w-10" /> : analysing}
+          hint="pipeline runs in progress"
+          tone={analysing > 0 ? 'info' : 'neutral'}
+          icon={<ActivityIcon className="h-4 w-4" />}
+        />
+        <StatTile
+          label="High or critical priority"
+          value={cases.isPending ? <Skeleton className="h-6 w-10" /> : urgent}
+          hint="cases needing attention first"
+          tone={urgent > 0 ? 'warning' : 'neutral'}
+          icon={<AlertTriangleIcon className="h-4 w-4" />}
+        />
+        <StatTile
+          label="Open alerts"
+          value={alerts.isPending ? <Skeleton className="h-6 w-10" /> : (openAlerts ?? '—')}
+          hint="unacknowledged, across your cases"
+          tone={openAlerts ? 'danger' : 'neutral'}
+          icon={<BellIcon className="h-4 w-4" />}
+        />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-        <div className="flex flex-col gap-3">
-          <Card className="flex flex-wrap items-end gap-3">
-            <div className="min-w-56 flex-1">
-              <Field label="Search" hint="Case number, NCRP or FIR reference, or title.">
-                {(props) => (
-                  <TextInput
-                    {...props}
-                    type="search"
-                    value={search}
-                    placeholder="TF-2026-0142"
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                )}
-              </Field>
-            </div>
-            <Field label="Status">
-              {(props) => (
-                <Select
-                  {...props}
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as CaseStatus | '')}
-                >
-                  <option value="">Any</option>
-                  {CASE_STATUSES.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-            <Field label="Priority">
-              {(props) => (
-                <Select
-                  {...props}
-                  value={priority}
-                  onChange={(e) => setPriority(e.target.value as Priority | '')}
-                >
-                  <option value="">Any</option>
-                  {PRIORITIES.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </Field>
-          </Card>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+        <Card padding="none" className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] p-3">
+            <label className="relative min-w-56 flex-1">
+              <span className="sr-only">Search</span>
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted)]" />
+              <TextInput
+                type="search"
+                value={search}
+                placeholder="Case number, NCRP or FIR reference, or title"
+                title="Case number, NCRP or FIR reference, or title."
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8"
+              />
+            </label>
+            <label className="flex items-center gap-2">
+              <span className="text-secondary text-[var(--muted)]">Status</span>
+              <Select
+                value={status}
+                className="w-36"
+                onChange={(e) => setStatus(e.target.value as CaseStatus | '')}
+              >
+                <option value="">Any</option>
+                {CASE_STATUSES.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label className="flex items-center gap-2">
+              <span className="text-secondary text-[var(--muted)]">Priority</span>
+              <Select
+                value={priority}
+                className="w-36"
+                onChange={(e) => setPriority(e.target.value as Priority | '')}
+              >
+                <option value="">Any</option>
+                {PRIORITIES.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
 
-          {cases.isPending && <Spinner label="Loading cases…" />}
-          {cases.isError && <ErrorNotice error={cases.error} onRetry={() => void cases.refetch()} />}
+          <div
+            className={`${ROW_GRID} text-label items-center gap-x-3 border-b border-[var(--border)] bg-[var(--surface-2)]/60 px-4 py-2`}
+            aria-hidden="true"
+          >
+            <span>Case</span>
+            <span>Priority</span>
+            <span className="hidden sm:block">Status</span>
+            <span>Title</span>
+            <span className="hidden text-right sm:block">Reported loss</span>
+            <span className="hidden text-right sm:block">Created</span>
+          </div>
+
+          {cases.isPending && <RowsSkeleton />}
+          {cases.isError && (
+            <div className="p-3">
+              <ErrorNotice error={cases.error} onRetry={() => void cases.refetch()} />
+            </div>
+          )}
 
           {cases.isSuccess &&
             (items.length === 0 ? (
-              filtered ? (
-                <EmptyState title="No cases match these filters">
-                  <p>Clear the search or widen the status and priority filters.</p>
-                </EmptyState>
-              ) : (
-                <EmptyState
-                  title="No cases yet"
-                  action={
-                    canEdit(user) ? (
-                      <Link to="/cases/new">
-                        <Button>+ New case</Button>
-                      </Link>
-                    ) : undefined
-                  }
-                >
-                  <p>
-                    A case holds one investigation. Create one, add the suspect address the victim
-                    reported, then start an analysis to trace where the funds went.
-                  </p>
-                </EmptyState>
-              )
+              <div className="p-3">
+                {filtered ? (
+                  <EmptyState title="No cases match these filters" icon={<SearchIcon />}>
+                    <p>Clear the search or widen the status and priority filters.</p>
+                  </EmptyState>
+                ) : (
+                  <EmptyState title="No cases yet" icon={<FolderIcon />} action={newCase}>
+                    <p>
+                      A case holds one investigation. Create one, add the suspect address the
+                      victim reported, then start an analysis to trace where the funds went.
+                    </p>
+                  </EmptyState>
+                )}
+              </div>
             ) : (
-              <Card padding="none">
+              <>
                 <ul>
                   {items.map((item) => (
                     <CaseRow key={item.id} item={item} />
                   ))}
                 </ul>
                 {cases.data.has_more && (
-                  <p className="border-t border-[var(--border)] px-3 py-2 text-xs text-[var(--muted)]">
+                  <p className="text-meta border-t border-[var(--border)] px-4 py-2">
                     Showing the {items.length} most recent cases. Narrow the filters to find older
                     ones.
                   </p>
                 )}
-              </Card>
+              </>
             ))}
-        </div>
+        </Card>
 
-        <AlertsPanel />
+        <AlertsPanel className="self-start xl:sticky xl:top-[4.5rem]" />
       </div>
     </div>
   )
