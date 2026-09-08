@@ -182,7 +182,23 @@ RISK.body.nodes = [RISK.body.root]
 
 const REPORTS = { match: 'GET /api/v1/cases/case-1/reports', body: [] }
 
-function render(routes = [ANALYSIS, graph(), ATTRIBUTIONS, PATTERNS, RISK, REPORTS]) {
+function freezeRequest(over: Record<string, unknown> = {}) {
+  return {
+    match: `GET /api/v1/analyses/${RUN}/freeze-request`,
+    body: {
+      recipient_name: 'Golden Exchange',
+      recipient_address: EXCHANGE,
+      tier: 'PROBABLE',
+      confidence: 0.82,
+      text: 'DRAFT — for review by the investigating officer.',
+      ...over,
+    },
+  }
+}
+
+function render(
+  routes = [ANALYSIS, graph(), ATTRIBUTIONS, PATTERNS, RISK, REPORTS, freezeRequest()],
+) {
   stubFetch(routes)
   return renderWithProviders(<InvestigationPage />, {
     path: '/analyses/:runId/investigation',
@@ -346,5 +362,37 @@ describe('investigation workspace', () => {
     await screen.findByText(/Where the money went/)
 
     await expectNoAxeViolations(container)
+  })
+})
+
+describe('the freeze request', () => {
+  it('keeps the tier beside the recipient rather than folded into the name', async () => {
+    render()
+    await screen.findByText(/Where the money went/)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Evidence' }))
+
+    expect(await screen.findByText(/To: Golden Exchange/)).toBeInTheDocument()
+    // The name alone would read as an identification. The tier has to travel with it.
+    expect(screen.getByText('Likely — 82%')).toBeInTheDocument()
+  })
+
+  it('still offers a letter when no service could be named', async () => {
+    render([
+      ANALYSIS,
+      graph(),
+      ATTRIBUTIONS,
+      PATTERNS,
+      RISK,
+      REPORTS,
+      freezeRequest({ recipient_name: null, tier: 'UNATTRIBUTED', confidence: null }),
+    ])
+    await screen.findByText(/Where the money went/)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Evidence' }))
+
+    expect(
+      await screen.findByText(/To: the operator of the receiving address/),
+    ).toBeInTheDocument()
   })
 })

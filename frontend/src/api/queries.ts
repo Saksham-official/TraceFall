@@ -11,6 +11,7 @@ import type {
   AnalysisStart,
   Case,
   CaseAddress,
+  FreezeRequest,
   CaseAddressCreate,
   CaseCreate,
   CaseStatus,
@@ -36,6 +37,7 @@ export const keys = {
   caseTimeline: (id: string) => ['case', id, 'timeline'] as const,
   caseCorrelations: (id: string) => ['case', id, 'correlations'] as const,
   analysis: (id: string) => ['analysis', id] as const,
+  freezeRequest: (id: string) => ['analysis', id, 'freeze-request'] as const,
 }
 
 export interface CaseFilters {
@@ -235,5 +237,12 @@ export function useAcknowledgeAlert() {
   return useMutation({
     mutationFn: (id: number) => request<Alert>(`/alerts/${id}/acknowledge`, { method: 'POST' }),
     onSuccess: () => client.invalidateQueries({ queryKey: ['alerts'] }),
+  })
+}
+
+export function useFreezeRequest(runId: string) {
+  return useQuery({
+    queryKey: keys.freezeRequest(runId),
+    queryFn: () => request<FreezeRequest>(`/analyses/${runId}/freeze-request`),
   })
 }

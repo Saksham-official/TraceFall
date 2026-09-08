@@ -26,24 +26,26 @@ import {
   useAnalysis,
   useAttributions,
   useCase,
+  useFreezeRequest,
   useGenerateReport,
   useGraph,
   usePatterns,
   useReports,
   useRisk,
 } from '../api/queries'
-import { AddressChip, HashChip } from '../components/AddressChip'
+import { AddressChip, HashChip, useCopy } from '../components/AddressChip'
 import { AttributionCard } from '../components/AttributionCard'
 import { GraphView } from '../components/GraphView'
 import { RiskBadge } from '../components/RiskBadge'
 import { Tabs } from '../components/Tabs'
-import { tierLabel } from '../components/TierBadge'
+import { TierBadge, tierLabel } from '../components/TierBadge'
 import {
   ActivityIcon,
   AlertTriangleIcon,
   ArrowLeftIcon,
   BuildingIcon,
   CheckCircleIcon,
+  CopyIcon,
   DownloadIcon,
   FileTextIcon,
   GitBranchIcon,
@@ -908,6 +910,52 @@ function RiskPanel({ rows, disclaimer }: { rows: RiskRow[]; disclaimer?: string 
   )
 }
 
+/**
+ * The draft KYC and freeze request this analysis supports.
+ *
+ * The report answers "where did the money go"; this is the letter that acts on it. It is
+ * shown as text rather than a download because an investigator edits it before sending —
+ * it goes out on their letterhead, under their authority, never ours.
+ *
+ * The tier is badged next to the recipient and never folded into the name: a PROBABLE
+ * identification stays visibly probable right up to the point the letter is sent.
+ */
+function FreezeRequestPanel({ runId }: { runId: string }) {
+  const draft = useFreezeRequest(runId)
+  const { copied, copy } = useCopy(draft.data?.text ?? '')
+
+  return (
+    <Card
+      title="Freeze request"
+      description="A draft KYC and account-restriction request for the service that received the funds. Review it, then send it on your own letterhead."
+    >
+      {draft.isPending && <Skeleton className="h-32" />}
+      {draft.isError && <ErrorNotice error={draft.error} onRetry={() => void draft.refetch()} />}
+      {draft.data && (
+        <>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="text-secondary">
+              To: {draft.data.recipient_name ?? 'the operator of the receiving address'}
+            </span>
+            <TierBadge tier={draft.data.tier} confidence={draft.data.confidence} />
+            <Button
+              className="ml-auto"
+              variant="secondary"
+              icon={<CopyIcon />}
+              onClick={() => void copy()}
+            >
+              {copied ? 'Copied' : 'Copy letter'}
+            </Button>
+          </div>
+          <pre className="mt-3 max-h-96 overflow-auto rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface-2)] p-3 text-xs leading-relaxed whitespace-pre-wrap">
+            {draft.data.text}
+          </pre>
+        </>
+      )}
+    </Card>
+  )
+}
+
 function EvidencePanel({
   caseId,
   runId,
@@ -976,6 +1024,8 @@ function EvidencePanel({
           </ul>
         )}
       </Card>
+
+      <FreezeRequestPanel runId={runId} />
 
       <Card
         title="What this analysis could not do"

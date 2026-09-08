@@ -450,3 +450,12 @@ export interface Correlations {
   shared_addresses: SharedAddress[]
   note: string
 }
+
+/** A draft KYC and freeze request for the investigating officer to review and send. */
+export interface FreezeRequest {
+  recipient_name: string | null
+  recipient_address: string | null
+  tier: AttributionTier
+  confidence: number | null
+  text: string
+}
