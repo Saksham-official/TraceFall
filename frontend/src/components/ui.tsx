@@ -158,7 +158,7 @@ export function StatTile({
         <span className="text-label">{label}</span>
         {icon && <span className="text-[var(--muted)]">{icon}</span>}
       </div>
-      <div className={`text-num text-[1.375rem] leading-7 font-semibold tracking-tight ${valueTone}`}>
+      <div className={`text-num min-w-0 text-[1.375rem] leading-7 font-semibold tracking-tight break-words ${valueTone}`}>
         {value}
       </div>
       {hint && <div className="text-meta truncate">{hint}</div>}

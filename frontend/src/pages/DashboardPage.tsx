@@ -44,7 +44,9 @@ function CaseRow({ item }: { item: Case }) {
         <Badge band={item.priority} size="xs" className="justify-self-start">
           {item.priority}
         </Badge>
-        <StatusPill status={item.status} className="hidden justify-self-start sm:inline-flex" />
+        <span className="hidden justify-self-start sm:block">
+          <StatusPill status={item.status} />
+        </span>
         <span className="col-span-3 truncate pt-1 sm:col-span-1 sm:pt-0">{item.title}</span>
         <span className="text-num hidden text-right text-[var(--muted)] sm:block">{loss ?? '—'}</span>
         <span className="text-meta hidden text-right sm:block">{relativeTime(item.created_at)}</span>
@@ -102,7 +104,7 @@ export function DashboardPage() {
         actions={newCase}
       />
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           label="Open cases"
           value={cases.isPending ? <Skeleton className="h-6 w-10" /> : open}
