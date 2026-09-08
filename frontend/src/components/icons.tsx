@@ -12,6 +12,8 @@ export type IconProps = { className?: string }
 const base = 'h-3.5 w-3.5 shrink-0'
 
 function Svg({ className, children }: IconProps & { children: ReactNode }) {
+  // A caller's className adds colour or spacing; it only replaces the size when it sets one.
+  const cls = /\bh-/.test(className ?? '') ? className : `${base} ${className ?? ''}`
   return (
     <svg
       aria-hidden="true"
@@ -22,7 +24,7 @@ function Svg({ className, children }: IconProps & { children: ReactNode }) {
       strokeWidth="1.5"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className={className ?? base}
+      className={cls}
     >
       {children}
     </svg>

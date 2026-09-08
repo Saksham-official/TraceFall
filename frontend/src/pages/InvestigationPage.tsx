@@ -100,7 +100,7 @@ export function InvestigationPage() {
       <div role="status" aria-label="Loading analysis" className="flex flex-col gap-5">
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-8 w-2/3" />
-        <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-20" />
           ))}
@@ -137,8 +137,10 @@ export function InvestigationPage() {
         root.tainted_amount_raw,
       )
     : null
+  // Distinct named entities of any type — an OFAC party counts as much as an exchange.
+  const entities = new Set([...confirmed, ...probable].map((a) => a.entity_name)).size
   const exchanges = new Set(
-    rows.filter((a) => a.entity_type === 'EXCHANGE' && a.entity_name).map((a) => a.entity_name),
+    [...confirmed, ...probable].filter((a) => a.entity_type === 'EXCHANGE').map((a) => a.entity_name),
   ).size
 
   return (
@@ -202,7 +204,7 @@ export function InvestigationPage() {
         </Banner>
       )}
 
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           label="Risk"
           icon={<ShieldIcon className="h-4 w-4" />}
@@ -262,13 +264,13 @@ export function InvestigationPage() {
           }
         />
         <StatTile
-          label="Exchanges found"
+          label="Entities identified"
           icon={<BuildingIcon className="h-4 w-4" />}
-          value={attributions.isPending ? <Skeleton className="h-6 w-10" /> : exchanges}
+          value={attributions.isPending ? <Skeleton className="h-6 w-10" /> : entities}
           tone={confirmed.length > 0 ? 'success' : probable.length > 0 ? 'info' : 'neutral'}
-          hint={`${confirmed.length} confirmed · ${probable.length} likely · ${
-            rows.filter((a) => a.tier === 'UNATTRIBUTED').length
-          } unattributed`}
+          hint={`${exchanges} exchange${exchanges === 1 ? '' : 's'} · ${confirmed.length} confirmed · ${
+            probable.length
+          } likely · ${rows.filter((a) => a.tier === 'UNATTRIBUTED').length} unattributed`}
         />
       </div>
 
