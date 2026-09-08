@@ -396,3 +396,69 @@ describe('the freeze request', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('how reachable the money still is', () => {
+  /** The same graph, with the one flow into the exchange dated. */
+  function reachedAt(last_transfer_at: string | null) {
+    return render([
+      ANALYSIS,
+      graph({
+        edges: [
+          {
+            from: SUSPECT,
+            to: EXCHANGE,
+            asset_symbol: 'USDT',
+            decimals: 6,
+            total_amount_raw: '40000000',
+            tainted_amount_raw: '40000000',
+            transfer_count: 4,
+            first_transfer_at: null,
+            last_transfer_at,
+            tx_hashes: ['aa11'],
+          },
+        ],
+      }),
+      ATTRIBUTIONS,
+      PATTERNS,
+      RISK,
+      REPORTS,
+      freezeRequest(),
+    ])
+  }
+
+  const agoMs = (ms: number) => new Date(Date.now() - ms).toISOString()
+
+  it('presses for action while the trail is hours old', async () => {
+    reachedAt(agoMs(4 * 60 * 60 * 1000))
+
+    expect(
+      await screen.findByText(/Traced value last reached an identified service/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/a freeze request is most useful now/)).toBeInTheDocument()
+  })
+
+  it('never claims the funds are still in the account', async () => {
+    reachedAt(agoMs(4 * 60 * 60 * 1000))
+    await screen.findByText(/Traced value last reached an identified service/)
+
+    expect(
+      screen.getByText(/cannot be seen from public data/),
+    ).toBeInTheDocument()
+  })
+
+  it('says the trail is old rather than pressing for action', async () => {
+    reachedAt(agoMs(120 * 24 * 60 * 60 * 1000))
+
+    expect(await screen.findByText(/The trail is old/)).toBeInTheDocument()
+    expect(screen.queryByText(/most useful now/)).not.toBeInTheDocument()
+  })
+
+  it('says nothing at all when no flow carries a time', async () => {
+    reachedAt(null)
+    await screen.findByText(/Where the money went/)
+
+    expect(
+      screen.queryByText(/Traced value last reached an identified service/),
+    ).not.toBeInTheDocument()
+  })
+})

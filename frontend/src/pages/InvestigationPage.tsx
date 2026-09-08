@@ -45,6 +45,7 @@ import {
   ArrowLeftIcon,
   BuildingIcon,
   CheckCircleIcon,
+  ClockIcon,
   CopyIcon,
   DownloadIcon,
   FileTextIcon,
@@ -73,6 +74,7 @@ import {
   formatDateTime,
   formatRaw,
   patternLabel,
+  relativeTime,
   sharePercent,
   truncateAddress,
 } from '../lib/format'
@@ -395,6 +397,75 @@ function GraphSkeleton() {
   )
 }
 
+const HOUR = 60 * 60 * 1000
+const ACT_NOW_WITHIN = 48 * HOUR
+const ACT_SOON_WITHIN = 14 * 24 * HOUR
+
+/**
+ * When traced value last reached a service we could name, and what that means for acting.
+ *
+ * The objective is to reach the money while it is still reachable, and nothing on this
+ * screen said how old the trail was. Age is the one honest proxy available from public
+ * data: we cannot see an exchange's internal ledger, so we cannot know whether the funds
+ * are still in the account.
+ *
+ * So the elapsed time is stated as the fact it is, and the urgency is framed as a general
+ * property of exchange balances rather than a claim about these particular funds. Saying
+ * "the money is still there" would be exactly the kind of unsupported certainty the tiers
+ * exist to prevent.
+ */
+function lastReachedService(
+  graph: GraphPayload | undefined,
+  services: AttributionRow[],
+): { at: string; ageMs: number } | null {
+  const named = new Set(services.map((s) => s.address))
+  let newest: { at: string; ageMs: number } | null = null
+  for (const edge of graph?.edges ?? []) {
+    if (!named.has(edge.to) || !edge.last_transfer_at) continue
+    const ageMs = Date.now() - Date.parse(edge.last_transfer_at)
+    if (Number.isNaN(ageMs)) continue
+    if (newest === null || ageMs < newest.ageMs) {
+      newest = { at: edge.last_transfer_at, ageMs }
+    }
+  }
+  return newest
+}
+
+function ReachabilityNote({
+  graph,
+  services,
+}: {
+  graph: GraphPayload | undefined
+  services: AttributionRow[]
+}) {
+  const reached = lastReachedService(graph, services)
+  if (reached === null) return null
+  const urgent = reached.ageMs <= ACT_NOW_WITHIN
+  const soon = !urgent && reached.ageMs <= ACT_SOON_WITHIN
+  return (
+    <p
+      className={`text-secondary mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[var(--radius)] border px-3 py-2 ${
+        urgent
+          ? 'border-[var(--danger-border)] bg-[var(--danger-bg)] text-[var(--danger-fg)]'
+          : 'border-[var(--border)] bg-[var(--surface-2)]'
+      }`}
+    >
+      <ClockIcon className="h-3.5 w-3.5 shrink-0" />
+      <span>
+        Traced value last reached an identified service{' '}
+        <strong>{relativeTime(reached.at)}</strong>.
+      </span>
+      <span className="text-meta">
+        {urgent
+          ? 'Exchange balances are typically moved within days, so a freeze request is most useful now. Whether the funds remain in the account cannot be seen from public data.'
+          : soon
+            ? 'Still worth a freeze request, though the balance may already have moved. Public data cannot show whether it has.'
+            : 'The trail is old. A KYC request may still identify the account even if the balance has gone.'}
+      </span>
+    </p>
+  )
+}
+
 function Overview({
   risk,
   confirmed,
@@ -446,6 +517,7 @@ function Overview({
               records held by a VASP, or data sources beyond public blockchain analytics.
             </p>
           )}
+          <ReachabilityNote graph={graph} services={[...confirmed, ...probable]} />
           {(confirmed.length > 0 || probable.length > 0) && (
             <ul className="mt-3 flex flex-col gap-1.5 border-t border-[var(--border)] pt-3">
               {[...confirmed, ...probable].slice(0, 6).map((row) => (
