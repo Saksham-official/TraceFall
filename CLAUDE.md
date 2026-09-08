@@ -20,7 +20,7 @@
 > **What is left is rehearsal, not code:** run the walkthrough on the presentation machine
 > with the network disconnected, more than once, and record one take as a fallback.
 >
-> **521 backend tests, 51 frontend tests, 5 Playwright end-to-end tests** against the running
+> **539 backend tests, 60 frontend tests, 5 Playwright end-to-end tests** against the running
 > containers. ruff, `ruff format --check`, mypy `strict`, eslint, `tsc -b` and `vite build`
 > all clean. Coverage gated per engine: 97.6% `tracing/`, 98.2% `attribution/`, 97.2% `risk/`.
 >
@@ -38,6 +38,28 @@
 > and say in the commit why the number moved. The Playwright suite guards what only a real
 > browser reaches — and it can hold no more tests, because each signs in and the API allows
 > ten sign-ins per minute.
+>
+> **Two demo-rot guards, added 2026-09-09.** A fixture holds fixed timestamps while
+> `last_days(N)` slides forward, so a frozen fixture set traces less every day — one case had
+> already collapsed from five addresses to one, silently, because `--check` gated only on
+> missing fixtures. `config/demo_addresses.yaml` now records the counts each case must produce
+> and `--check` fails naming any that drifted; `tests/test_demo_config.py` asserts the demo
+> window still matches the intake default it claims to mirror. The window is **180 days**, and
+> the defaults live in `schemas/analysis.py` rather than in four places. See ADR-020's
+> correction.
+>
+> **Beyond the problem statement.** `GET /cases/{id}/correlations` reports the addresses a case
+> shares with others — the same fraud rarely produces one report, and ten victims funnelling
+> into one deposit address is one freeze request rather than ten. Confirmed service addresses
+> are excluded or a hot wallet would link everything to everything. `GET
+> /analyses/{id}/freeze-request` drafts the letter the analysis supports, with the tier carried
+> into the text so a `PROBABLE` identification never reads as a fact.
+>
+> **The demo still names no exchange.** All four cases attribute only OFAC sanctions hits on the
+> root; the 17 Binance labels never fire, so "which exchange received the money" is not
+> demonstrated. Closing that is data, not code: `scripts/curate_exchange_labels.py` against more
+> proof-of-reserves disclosures, then a demo address that reaches one. Needs `LIVE_MODE=true`
+> and a TronGrid key.
 >
 > Update the phase table in `IMPLEMENTATION_PLAN.md` when a phase completes, and update this
 > banner when the phase changes.

@@ -95,7 +95,7 @@ returning ranked candidates whenever more than one matches, rather than tuning t
 answer.
 
 ### OQ-06 · Are the default thresholds right for real Indian case sizes?
-Depth 5, taint threshold 1%, fan-out cap 20, 90-day window. Chosen for a sensible balance of
+Depth 5, taint threshold 1%, fan-out cap 20, 180-day window. Chosen for a sensible balance of
 completeness and runtime. **Unvalidated against real cases.**
 **Resolve by:** running traces on the demo addresses in Phase 15 and checking whether the
 defaults reach the exchange endpoints or stop short. Adjust once, with the reasoning recorded.

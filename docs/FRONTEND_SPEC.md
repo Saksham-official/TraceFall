@@ -221,7 +221,7 @@ Address *   [TXn8kL2mQpR4vY7wZ3aB6cD9eF1gH5jK2m          ]  ✓ Valid TRON addre
 Amount victim sent   [40000        ] [USDT ▾]
 Date and time sent   [14 Aug 2026] [09:32]
 
-▸ Advanced (depth 5, window 90 days, threshold 1%)
+▸ Advanced (depth 5, window 180 days, threshold 1%)
 
                                           [ Start analysis ]
 ```

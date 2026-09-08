@@ -389,6 +389,23 @@ it belongs anyway. This is acceptable because fixture mode exists for demos and 
 which want determinism over query fidelity; live mode is unaffected. A test asserts the two
 windows return identical data, so the behaviour is pinned rather than accidental.
 
+**Correction, 2026-09-09.** The paragraph above said window filtering happens "during
+normalization". It does not: `normalize/parsers.py` deliberately records everything observed,
+and the window is applied by the tracing engine (`tracing/engine.py`, `_eligible`). The
+distinction matters, and getting it wrong hid a real failure.
+
+A fixture holds transfers with fixed timestamps while `TimeWindow.last_days(N)` slides forward
+every day, so **a frozen fixture set traces less and less as time passes**. Two days after the
+demo fixtures were captured, one demo case's only outbound transfer had aged out of the 90-day
+window and its trace collapsed from five addresses to one — with nothing failing, because the
+pre-flight check gated only on missing fixtures, not on the shape of the result.
+
+Guarded now in two places: `config/demo_addresses.yaml` records the node and edge counts each
+case must produce and `scripts/demo_fixtures.py --check` fails naming any that drifted, and
+`tests/test_demo_config.py` asserts the demo window still matches the intake default it claims
+to mirror. The window itself moved to 180 days, which is past the oldest transfer in the
+committed fixtures by a wide margin.
+
 ---
 
 ## ADR-017 — A trace follows a single asset

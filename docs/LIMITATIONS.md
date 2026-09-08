@@ -107,7 +107,7 @@ implementation — the information does not exist on-chain.
 
 ### Time windows can hide movement
 
-The default 90-day window means funds moved on day 91 are missed. Configurable, at the cost of
+The default 180-day window means funds moved on day 181 are missed. Configurable, at the cost of
 noise and runtime.
 
 ---

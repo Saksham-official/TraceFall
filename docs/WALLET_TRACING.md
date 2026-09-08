@@ -50,7 +50,7 @@ ends the trace rather than continuing through it — see ADR-017 and
 | `max_depth` | 5 | 10 | Hop limit |
 | `taint_threshold` | 0.01 | — | Prune branches carrying <1% of the original value |
 | `min_amount_usd` | 10 | — | Ignore dust transfers |
-| `time_window_days` | 90 | 365 | Only transfers within the window are eligible |
+| `time_window_days` | 180 | 365 | Only transfers within the window are eligible |
 | `edge_budget` | 5,000 | 20,000 | Global cap on edges explored |
 | `fanout_cap` | 20 | 100 | Per-node cap on outbound branches followed, by taint |
 | `stop_at_services` | `true` | — | Terminate at exchange / mixer / bridge nodes |

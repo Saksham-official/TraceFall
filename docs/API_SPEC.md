@@ -153,6 +153,22 @@ four round trips.
 ### `PATCH /cases/{case_id}` — update status, priority, title, description.
 ### `POST /cases/{case_id}/notes` — add a note, optionally pinning a finding (FR-06).
 ### `GET /cases/{case_id}/timeline` — the human-readable activity log (FR-05).
+### `GET /cases/{case_id}/correlations` — addresses this case shares with others
+
+```json
+{ "shared_addresses": [
+    { "address": "TLFq…", "chain": "TRON", "case_count": 2,
+      "combined_reported_loss_inr": "450000",
+      "cases": [ { "case_id": "…", "case_number": "TF-2026-0002",
+                   "title": "…", "reported_loss_inr": "250000" } ] } ],
+  "note": "A shared address is an on-chain fact, not a conclusion…" }
+```
+
+Most-shared first. **Confirmed exchange, mixer, bridge and merchant addresses are excluded** —
+a hot wallet appears in nearly every trace, so including it would bury the addresses that
+actually link cases. Only cases the caller can already open are reachable, through the same
+visibility policy as `GET /cases`: an investigator sees links across their own cases, an
+analyst or admin across the department.
 
 ---
 
@@ -206,7 +222,7 @@ unsupported format). Validation happens before any network call (FR-12).
 
 ```json
 { "address_id": 8812, "direction": "FORWARD", "max_depth": 5,
-  "taint_threshold": 0.01, "time_window_days": 90,
+  "taint_threshold": 0.01, "time_window_days": 180,
   "stop_at_services": true, "include_patterns": true, "include_risk": true }
 ```
 
@@ -371,6 +387,19 @@ the response says which was used. → `202 { report_id, status, poll_url }`.
 ### `GET /reports/{report_id}` → metadata including `content_sha256` and `narrative_source`.
 ### `GET /reports/{report_id}/download` → the file, `Content-Disposition: attachment`. Audited.
 ### `GET /cases/{case_id}/reports` → list.
+### `GET /analyses/{run_id}/freeze-request` — the draft KYC and freeze request
+
+```json
+{ "recipient_name": "Binance", "recipient_address": "TWBA…",
+  "tier": "PROBABLE", "confidence": 0.82, "text": "DRAFT — for review…" }
+```
+
+Plain text, generated on read: it is a draft an investigator edits and sends on their own
+letterhead, not a record of what was sent, so nothing is stored or hashed. The tier is carried
+as its own field and is never folded into `recipient_name`. A `PROBABLE` attribution produces a
+letter that says so and asks the recipient to confirm the address is theirs; an unattributed
+one is still addressed to the operator of the receiving address, because exchanges do not
+publish customer deposit addresses and a VASP recognises its own regardless.
 
 ---
 
