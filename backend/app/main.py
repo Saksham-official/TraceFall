@@ -5,6 +5,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from contextlib import asynccontextmanager
+
 from app import __version__
 from app.api.middleware import AuditMiddleware, RequestContextMiddleware
 from app.api.v1 import router as v1_router
@@ -13,10 +15,21 @@ from app.core.exceptions import TraceFallError, ValidationFailed
 from app.core.headers import SecurityHeadersMiddleware
 from app.core.logging import configure_logging
 from app.core.ratelimit import RateLimitMiddleware
+from app.db.seed import seed_demo_data
 
 configure_logging()
 log = logging.getLogger(__name__)
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    try:
+        await seed_demo_data()
+    except Exception as e:
+        log.warning("Auto-seed error on startup: %s", e)
+    yield
+
 
 app = FastAPI(
     title="TraceFall API",
@@ -24,6 +37,7 @@ app = FastAPI(
     # Docs are a development convenience, not a production surface.
     docs_url="/docs" if settings.environment == "development" else None,
     redoc_url=None,
+    lifespan=lifespan,
 )
 
 # Middleware runs in reverse registration order, so this list reads bottom-up: security
