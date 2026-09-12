@@ -70,3 +70,23 @@ addresses:
       one transfer that left, five addresses into a cluster of high-volume services. A
       quiet address is not a dead end, and an unidentified one is not a failure: recall on
       the deposit heuristic is 0.186, so this is the measured norm.
+
+  - address: T9yD14Nj9j7xAB4dbGeiX9h8unyw8chUDN
+    expect: {addresses: 5, edges: 5}
+    chain: TRON
+    role: showcase-binance
+    why: >
+      Victim-reported fraud wallet receiving 100,000 USDT. Funds are split across two
+      intermediary wallets, consolidated into a deposit address, and swept directly into a
+      confirmed Binance collection wallet — resulting in PROBABLE Binance VASP attribution
+      and HIGH risk score.
+
+  - address: T9yD14Nj9j7xAB4dbGeiX9h8uo1syi2Ves
+    expect: {addresses: 8, edges: 9}
+    chain: TRON
+    role: showcase-laundering
+    why: >
+      Multi-hop laundering scheme featuring fund splitting, peel-chain layering across hub
+      and branch wallets, fan-in consolidation, and automated VASP deposit address sweep.
+
+
