@@ -119,6 +119,15 @@ export function useCreateCase() {
   })
 }
 
+export function useDeleteCase() {
+  const client = useQueryClient()
+  return useMutation({
+    mutationFn: (caseId: string) =>
+      request<null>(`/cases/${caseId}`, { method: 'DELETE' }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['cases'] }),
+  })
+}
+
 export function useAddAddress(caseId: string) {
   const client = useQueryClient()
   return useMutation({

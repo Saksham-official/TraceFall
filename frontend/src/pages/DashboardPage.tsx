@@ -1,7 +1,7 @@
 import { useDeferredValue, useState } from 'react'
 import { Link } from 'react-router-dom'
 
-import { useCases, useOpenAlerts } from '../api/queries'
+import { useCases, useDeleteCase, useOpenAlerts } from '../api/queries'
 import { CASE_STATUSES, PRIORITIES } from '../api/types'
 import type { Case, CaseStatus, Priority } from '../api/types'
 import { canEdit, useAuth } from '../auth'
@@ -13,6 +13,7 @@ import {
   FolderIcon,
   PlusIcon,
   SearchIcon,
+  TrashIcon,
 } from '../components/icons'
 import {
   Badge,
@@ -29,17 +30,27 @@ import {
 } from '../components/ui'
 import { formatInr, relativeTime } from '../lib/format'
 
-const ROW_GRID = 'grid grid-cols-[7.5rem_5.5rem_1fr] sm:grid-cols-[7.5rem_5.5rem_6.5rem_1fr_7rem_6rem]'
+const ROW_GRID = 'grid grid-cols-[7.5rem_5.5rem_1fr_2rem] sm:grid-cols-[7.5rem_5.5rem_6.5rem_1fr_7rem_6rem_2rem]'
 
 function CaseRow({ item }: { item: Case }) {
+  const { user } = useAuth()
+  const deleteCase = useDeleteCase()
   const loss = formatInr(item.reported_loss_inr)
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (window.confirm(`Are you sure you want to delete case ${item.case_number} (${item.title})?`)) {
+      deleteCase.mutate(item.id)
+    }
+  }
+
   return (
     <li className="border-b border-[var(--border)] last:border-b-0">
-      <Link
-        to={`/cases/${item.id}`}
-        className={`${ROW_GRID} transition-ui items-center gap-x-3 px-4 py-2.5 hover:bg-[var(--surface-2)] focus-visible:bg-[var(--surface-2)]`}
-      >
-        <span className="font-mono text-[0.8125rem] font-medium">{item.case_number}</span>
+      <div className={`${ROW_GRID} transition-ui items-center gap-x-3 px-4 py-2.5 hover:bg-[var(--surface-2)] focus-visible:bg-[var(--surface-2)]`}>
+        <Link to={`/cases/${item.id}`} className="font-mono text-[0.8125rem] font-medium hover:underline">
+          {item.case_number}
+        </Link>
         {/* Priority carries its word as well as its colour — never the colour alone (NFR-18). */}
         <Badge band={item.priority} size="xs" className="justify-self-start">
           {item.priority}
@@ -47,10 +58,25 @@ function CaseRow({ item }: { item: Case }) {
         <span className="hidden justify-self-start sm:block">
           <StatusPill status={item.status} />
         </span>
-        <span className="col-span-3 truncate pt-1 sm:col-span-1 sm:pt-0">{item.title}</span>
+        <Link to={`/cases/${item.id}`} className="col-span-2 truncate pt-1 hover:underline sm:col-span-1 sm:pt-0">
+          {item.title}
+        </Link>
         <span className="text-num hidden text-right text-[var(--muted)] sm:block">{loss ?? '—'}</span>
         <span className="text-meta hidden text-right sm:block">{relativeTime(item.created_at)}</span>
-      </Link>
+        {canEdit(user) ? (
+          <button
+            type="button"
+            onClick={handleDelete}
+            title="Delete case"
+            disabled={deleteCase.isPending}
+            className="flex h-7 w-7 items-center justify-center rounded-[var(--radius)] text-[var(--muted)] hover:bg-[var(--danger-subtle)] hover:text-[var(--danger)] transition-colors"
+          >
+            <TrashIcon className="h-4 w-4" />
+          </button>
+        ) : (
+          <span />
+        )}
+      </div>
     </li>
   )
 }

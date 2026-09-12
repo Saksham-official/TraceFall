@@ -152,7 +152,7 @@ async def timeline(
 async def delete_case(
     case_id: uuid.UUID,
     session: SessionDep,
-    user: Annotated[User, Depends(require_role(UserRole.ADMIN))],
+    user: Investigator,
 ) -> Response:
     case = await get_accessible_case(case_id, user, session)
     await session.delete(case)

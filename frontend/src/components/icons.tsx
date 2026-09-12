@@ -100,6 +100,15 @@ export function PlusIcon(props: IconProps) {
   )
 }
 
+export function TrashIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M2.5 4h11M5.5 4V2.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V4M12.5 4v9.5a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1V4" />
+      <path d="M6.5 7v4.5M9.5 7v4.5" />
+    </Svg>
+  )
+}
+
 export function SearchIcon(props: IconProps) {
   return (
     <Svg {...props}>

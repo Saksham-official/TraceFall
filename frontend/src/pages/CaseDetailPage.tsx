@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import {
   useCase,
@@ -7,6 +7,7 @@ import {
   useCaseAnalyses,
   useCaseCorrelations,
   useCaseTimeline,
+  useDeleteCase,
   ANALYSIS_IS_ACTIVE,
 } from '../api/queries'
 import type { Alert, Analysis, LinkedCase, SharedAddress } from '../api/types'
@@ -21,6 +22,7 @@ import {
   GitBranchIcon,
   LinkIcon,
   PlusIcon,
+  TrashIcon,
   WalletIcon,
 } from '../components/icons'
 import {
@@ -323,8 +325,18 @@ function Overview({ caseId }: { caseId: string }) {
 
 export function CaseDetailPage() {
   const { caseId = '' } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const details = useCase(caseId)
+  const deleteCase = useDeleteCase()
+
+  const handleDeleteCase = () => {
+    if (details.data && window.confirm(`Are you sure you want to delete case ${details.data.case_number} (${details.data.title})?`)) {
+      deleteCase.mutate(caseId, {
+        onSuccess: () => navigate('/'),
+      })
+    }
+  }
 
   if (details.isPending) {
     return (
@@ -360,11 +372,22 @@ export function CaseDetailPage() {
           <Badge band={item.priority}>{item.priority}</Badge>
           <StatusPill status={item.status} />
           {canEdit(user) && (
-            <Link to={`/cases/${caseId}/address`} className="ml-auto">
-              <Button variant="secondary" icon={<PlusIcon />}>
-                Add address
+            <div className="ml-auto flex items-center gap-2">
+              <Link to={`/cases/${caseId}/address`}>
+                <Button variant="secondary" icon={<PlusIcon />}>
+                  Add address
+                </Button>
+              </Link>
+              <Button
+                variant="secondary"
+                icon={<TrashIcon />}
+                onClick={handleDeleteCase}
+                disabled={deleteCase.isPending}
+                className="text-[var(--danger)] hover:bg-[var(--danger-subtle)]"
+              >
+                Delete case
               </Button>
-            </Link>
+            </div>
           )}
         </div>
         <p className="text-meta mt-1 flex items-center gap-1.5">
