@@ -70,7 +70,54 @@ export function NewCasePage() {
       </div>
 
       <Card>
+        <div className="mb-5 rounded-[var(--radius)] border border-[var(--accent-soft)] bg-[var(--surface-2)] p-3.5">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-label text-[var(--accent)]">Featured SIH Demo Templates</span>
+            <span className="text-meta">Pre-fill details</span>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() =>
+                setForm({
+                  title: 'USDT Crypto Fraud — Binance Attribution',
+                  ncrp_reference: 'NCRP-2026-88412',
+                  fir_reference: 'FIR-2026/0421',
+                  description: 'Complainant reported theft of 100,000 USDT transferred from victim wallet to suspect address.',
+                  reported_loss_inr: '8400000',
+                  incident_date: '2026-09-01',
+                  priority: 'HIGH',
+                })
+              }
+              className="flex flex-col items-start rounded border border-[var(--border)] bg-[var(--surface)] p-2.5 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]/20"
+            >
+              <span className="font-medium text-[0.8125rem]">🔴 Case 1: Binance Fraud Trail</span>
+              <span className="mt-0.5 text-[0.75rem] text-[var(--muted)]">NCRP-2026-88412 · ₹84,00,000</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                setForm({
+                  title: 'Complex Multi-Wallet USDT Laundering',
+                  ncrp_reference: 'NCRP-2026-94105',
+                  fir_reference: 'FIR-2026/0589',
+                  description: 'Multi-stage laundering scheme involving peel chains, splitting and consolidation into exchange.',
+                  reported_loss_inr: '21000000',
+                  incident_date: '2026-09-02',
+                  priority: 'HIGH',
+                })
+              }
+              className="flex flex-col items-start rounded border border-[var(--border)] bg-[var(--surface)] p-2.5 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]/20"
+            >
+              <span className="font-medium text-[0.8125rem]">🟠 Case 2: Complex Fund Movement</span>
+              <span className="mt-0.5 text-[0.75rem] text-[var(--muted)]">NCRP-2026-94105 · ₹2,10,00,000</span>
+            </button>
+          </div>
+        </div>
+
         <form onSubmit={submit} className="flex flex-col gap-5" noValidate>
+
           <Field label="Title" required>
             {(props) => (
               <TextInput

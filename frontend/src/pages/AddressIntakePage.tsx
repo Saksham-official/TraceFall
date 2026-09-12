@@ -16,6 +16,7 @@ import {
   InfoIcon,
 } from '../components/icons'
 import {
+  Badge,
   Banner,
   Button,
   Card,
@@ -34,6 +35,28 @@ import { sniffAddress } from '../lib/addressFormat'
 // and config/demo_addresses.yaml is captured for the same window.
 const ADVANCED_DEFAULTS = { max_depth: 5, time_window_days: 180, taint_threshold: 0.01 }
 const STEPS = ['Case', 'Suspect address', 'Analysis']
+
+const SHOWCASE_CASES = [
+  {
+    name: 'Binance Fraud Trail',
+    badge: 'TRON • High Risk',
+    address: 'T9yD14Nj9j7xAB4dbGeiX9h8unyw8chUDN',
+    chain: 'TRON' as ChainCode,
+    amount: '100000',
+    asset: 'USDT',
+    desc: 'Multi-hop fund flow → Binance Deposit Address attribution',
+  },
+  {
+    name: 'Complex Fund Movement',
+    badge: 'TRON • High Risk',
+    address: 'T9yD14Nj9j7xAB4dbGeiX9h8uo1syi2Ves',
+    chain: 'TRON' as ChainCode,
+    amount: '250000',
+    asset: 'USDT',
+    desc: 'Peel chain → Fund splitting → Consolidation → VASP sweep',
+  },
+]
+
 
 export function AddressIntakePage() {
   const { caseId = '' } = useParams()
@@ -185,7 +208,38 @@ export function AddressIntakePage() {
         </>
       ) : (
         <Card>
+          <div className="mb-5 rounded-[var(--radius)] border border-[var(--accent-soft)] bg-[var(--surface-2)] p-3.5">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-label text-[var(--accent)]">Featured SIH Demo Cases</span>
+              <span className="text-meta">Offline Fixture Ready</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {SHOWCASE_CASES.map((sc) => (
+                <button
+                  key={sc.address}
+                  type="button"
+                  onClick={() => {
+                    setAddress(sc.address)
+                    setChain(sc.chain)
+                    setAmount(sc.amount)
+                    setAsset(sc.asset)
+                    setNotes(`SIH Demo Case: ${sc.name}. ${sc.desc}`)
+                  }}
+                  className="flex flex-col items-start rounded border border-[var(--border)] bg-[var(--surface)] p-2.5 text-left transition-colors hover:border-[var(--accent)] hover:bg-[var(--accent-soft)]/20"
+                >
+                  <div className="flex w-full items-center justify-between font-medium text-[0.8125rem]">
+                    <span>{sc.name}</span>
+                    <Badge band="HIGH" size="xs">{sc.badge}</Badge>
+                  </div>
+                  <span className="mt-1 font-mono text-[0.75rem] text-[var(--muted)]">{sc.address}</span>
+                  <span className="mt-1 text-[0.75rem] text-[var(--text-2)]">{sc.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <form onSubmit={submitAddress} className="flex flex-col gap-5" noValidate>
+
             <Field
               label="Address"
               required
