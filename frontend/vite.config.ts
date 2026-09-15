@@ -6,7 +6,14 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     // The api container publishes no host port; nginx on :80 is the only way in.
-    proxy: { '/api': { target: 'http://localhost:8000', changeOrigin: true, secure: false } },
+    // For local development, allow the API port to differ from other projects.
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
   test: {
     environment: 'jsdom',
