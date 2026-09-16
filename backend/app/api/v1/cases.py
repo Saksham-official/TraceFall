@@ -34,6 +34,7 @@ router = APIRouter(prefix="/cases", tags=["cases"])
 Investigator = Annotated[
     User, Depends(require_role(UserRole.ADMIN, UserRole.INVESTIGATOR, UserRole.ANALYST))
 ]
+Admin = Annotated[User, Depends(require_role(UserRole.ADMIN))]
 
 
 async def _record(
@@ -152,7 +153,7 @@ async def timeline(
 async def delete_case(
     case_id: uuid.UUID,
     session: SessionDep,
-    user: Investigator,
+    user: Admin,
 ) -> Response:
     case = await get_accessible_case(case_id, user, session)
     await session.delete(case)

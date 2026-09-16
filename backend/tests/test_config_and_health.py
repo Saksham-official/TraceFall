@@ -19,8 +19,12 @@ def test_secret_key_must_be_long_enough() -> None:
         Settings(_env_file=None, secret_key="short")  # type: ignore[call-arg]
 
 
-def test_live_mode_defaults_to_true() -> None:
+def test_live_mode_defaults_to_true(monkeypatch: pytest.MonkeyPatch) -> None:
     """A fresh configuration uses real providers unless offline mode is explicit."""
+    # The test suite opts into offline fixtures globally so integration tests are
+    # deterministic. Remove that test-process override before checking the actual
+    # production default.
+    monkeypatch.delenv("LIVE_MODE", raising=False)
     settings = Settings(_env_file=None, secret_key="x" * 32)  # type: ignore[call-arg]
     assert settings.live_mode is True
 
