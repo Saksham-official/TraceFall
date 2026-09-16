@@ -41,6 +41,16 @@ async def test_successful_request_returns_the_raw_body() -> None:
 
 
 @respx.mock
+async def test_provider_credentials_are_redacted_from_response_metadata() -> None:
+    respx.get(TRON_URL).mock(return_value=httpx.Response(200, json={"data": []}))
+    response = await http.fetch(
+        "etherscan", TRON_URL, {"apikey": "SECRET", "limit": 5}, 100
+    )
+    assert response.params == {"apikey": "[REDACTED]", "limit": 5}
+    assert "SECRET" not in repr(response)
+
+
+@respx.mock
 async def test_rate_limit_is_retried_then_raises() -> None:
     route = respx.get(TRON_URL).mock(
         return_value=httpx.Response(429, headers={"Retry-After": "1"}, text="slow down")

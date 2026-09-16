@@ -18,6 +18,7 @@ from app.chains.base import (
     ProviderRateLimited,
     ProviderUnavailable,
     RawResponse,
+    redact_request_params,
 )
 from app.core.config import get_settings
 from app.ingestion import ratelimit, status
@@ -132,7 +133,7 @@ async def fetch(
         return RawResponse(
             provider=provider,
             endpoint=url,
-            params=params,
+            params=redact_request_params(params),
             status=response.status_code,
             body=response.content,
             retrieved_at=datetime.now(UTC),

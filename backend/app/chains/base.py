@@ -15,6 +15,16 @@ from typing import Any, Protocol
 
 from app.db.models.enums import ChainCode
 
+_SENSITIVE_PARAM_NAMES = frozenset({"apikey", "api_key", "token", "access_token"})
+
+
+def redact_request_params(params: dict[str, Any]) -> dict[str, Any]:
+    """Keep request metadata useful without persisting provider credentials."""
+    return {
+        key: ("[REDACTED]" if key.lower() in _SENSITIVE_PARAM_NAMES else value)
+        for key, value in params.items()
+    }
+
 
 class InvalidAddressError(ValueError):
     """Raised with a message an investigator can act on, not just 'invalid'."""
