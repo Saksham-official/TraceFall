@@ -353,7 +353,7 @@ docker compose exec api python -m app.cli create-admin
 open http://localhost
 ```
 
-The `create-admin` command is interactive. The default `.env.example` configuration uses `LIVE_MODE=false`, so the application does not need blockchain API keys for the offline path.
+The `create-admin` command is interactive. The default `.env.example` configuration uses `LIVE_MODE=true`, so investigations query configured blockchain providers. Set `LIVE_MODE=false` explicitly when you want the offline fixture walkthrough.
 
 ### Demo mode
 

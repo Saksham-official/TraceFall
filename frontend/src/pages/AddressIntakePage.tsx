@@ -3,7 +3,7 @@ import type { FormEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError } from '../api/client'
-import { useAddAddress, useCase, useStartAnalysis } from '../api/queries'
+import { useAddAddress, useCase, useHealth, useStartAnalysis } from '../api/queries'
 import { CHAIN_CODES } from '../api/types'
 import type { CaseAddress, ChainCode } from '../api/types'
 import { AddressChip } from '../components/AddressChip'
@@ -62,6 +62,7 @@ export function AddressIntakePage() {
   const { caseId = '' } = useParams()
   const navigate = useNavigate()
   const caseQuery = useCase(caseId)
+  const health = useHealth()
   const addAddress = useAddAddress(caseId)
   const startAnalysis = useStartAnalysis(caseId)
 
@@ -208,7 +209,7 @@ export function AddressIntakePage() {
         </>
       ) : (
         <Card>
-          <div className="mb-5 rounded-[var(--radius)] border border-[var(--accent-soft)] bg-[var(--surface-2)] p-3.5">
+          {health.data?.live_mode === false && <div className="mb-5 rounded-[var(--radius)] border border-[var(--accent-soft)] bg-[var(--surface-2)] p-3.5">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-label text-[var(--accent)]">Featured SIH Demo Cases</span>
               <span className="text-meta">Offline Fixture Ready</span>
@@ -236,7 +237,7 @@ export function AddressIntakePage() {
                 </button>
               ))}
             </div>
-          </div>
+          </div>}
 
           <form onSubmit={submitAddress} className="flex flex-col gap-5" noValidate>
 

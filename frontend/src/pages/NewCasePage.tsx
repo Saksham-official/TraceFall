@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 
-import { useCreateCase } from '../api/queries'
+import { useCreateCase, useHealth } from '../api/queries'
 import { PRIORITIES } from '../api/types'
 import type { Priority } from '../api/types'
 import { ArrowLeftIcon, ArrowRightIcon } from '../components/icons'
@@ -22,6 +22,7 @@ const STEPS = ['Case', 'Suspect address', 'Analysis']
 export function NewCasePage() {
   const navigate = useNavigate()
   const create = useCreateCase()
+  const health = useHealth()
   const [form, setForm] = useState({
     title: '',
     ncrp_reference: '',
@@ -70,7 +71,7 @@ export function NewCasePage() {
       </div>
 
       <Card>
-        <div className="mb-5 rounded-[var(--radius)] border border-[var(--accent-soft)] bg-[var(--surface-2)] p-3.5">
+        {health.data?.live_mode === false && <div className="mb-5 rounded-[var(--radius)] border border-[var(--accent-soft)] bg-[var(--surface-2)] p-3.5">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-label text-[var(--accent)]">Featured SIH Demo Templates</span>
             <span className="text-meta">Pre-fill details</span>
@@ -114,7 +115,7 @@ export function NewCasePage() {
               <span className="mt-0.5 text-[0.75rem] text-[var(--muted)]">NCRP-2026-94105 · ₹2,10,00,000</span>
             </button>
           </div>
-        </div>
+        </div>}
 
         <form onSubmit={submit} className="flex flex-col gap-5" noValidate>
 

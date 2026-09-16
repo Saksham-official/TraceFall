@@ -200,6 +200,7 @@ export interface Analysis {
   root_address_id: number
   /** So a screen can name the address being analysed without a second request. */
   root_address: string | null
+  root_chain: ChainCode | null
   status: AnalysisStatus
   stage: AnalysisStage | null
   progress_pct: number

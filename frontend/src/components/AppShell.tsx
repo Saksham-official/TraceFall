@@ -40,6 +40,7 @@ export function AppShell() {
   const { user, logout } = useAuth()
   const health = useHealth()
   const fixture = health.data && !health.data.live_mode
+  const live = health.data?.live_mode === true
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -107,6 +108,14 @@ export function AppShell() {
             Cached snapshot — not live blockchain data. This instance runs with{' '}
             <code className="font-mono">LIVE_MODE=false</code>; retrieval is served from the
             committed fixture cache.
+          </div>
+        )}
+        {live && (
+          <div
+            role="status"
+            className="border-t border-[var(--success-border)] bg-[var(--success-bg)] px-4 py-1 text-center text-xs font-medium text-[var(--success-fg)] sm:px-6"
+          >
+            Live mode — blockchain data is retrieved from configured public providers for each investigation.
           </div>
         )}
       </header>

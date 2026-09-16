@@ -19,10 +19,10 @@ def test_secret_key_must_be_long_enough() -> None:
         Settings(_env_file=None, secret_key="short")  # type: ignore[call-arg]
 
 
-def test_live_mode_defaults_to_false() -> None:
-    """A fresh clone runs the demo path with no API keys and no network (ADR-009)."""
+def test_live_mode_defaults_to_true() -> None:
+    """A fresh configuration uses real providers unless offline mode is explicit."""
     settings = Settings(_env_file=None, secret_key="x" * 32)  # type: ignore[call-arg]
-    assert settings.live_mode is False
+    assert settings.live_mode is True
 
 
 def test_cors_origins_split_on_commas() -> None:

@@ -1,9 +1,4 @@
-import asyncio
 import logging
-import os
-import sys
-from pathlib import Path
-
 from sqlalchemy import select
 from app.db.session import SessionFactory
 from app.db.models.user import User
@@ -11,14 +6,9 @@ from app.db.models.case import Case, CaseAddress
 from app.db.models.blockchain import Address, Chain
 from app.db.models.analysis import AnalysisRun
 from app.db.models.enums import UserRole, CaseStatus, Priority, AddressRole, ChainCode, AnalysisStatus
-from app.core.security import hash_password
 from app.core.config import get_settings
 
 log = logging.getLogger(__name__)
-
-ADMIN_EMAIL = "admin@example.gov"
-ADMIN_NAME = "Demo Admin"
-ADMIN_PASSWORD = "TraceFall2026!"
 
 COMPLEX_CASE_TITLE = "Complex Fund Movement"
 COMPLEX_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8uo1syi2Ves"
@@ -28,25 +18,27 @@ BINANCE_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8unyw8chUDN"
 
 
 async def seed_demo_data() -> None:
-    """Ensure admin user and demo showcase cases exist and are completed in DB."""
-    # Ensure LIVE_MODE=false during seeding if not set
-    os.environ.setdefault("LIVE_MODE", "false")
+    """Populate the optional offline showcase, never the live product.
+
+    Live deployments must start empty apart from migrated reference data. In particular,
+    startup must not create a demo user, demo cases, or an analysis that could be mistaken
+    for a live investigation. Offline showcase data is only attached to an administrator
+    that was created explicitly with ``tracefall create-admin``.
+    """
+    if get_settings().live_mode:
+        log.info("LIVE_MODE=true; skipping offline showcase seed")
+        return
 
     try:
         async with SessionFactory() as session:
-            # 1. Ensure admin user exists
-            admin = await session.scalar(select(User).where(User.email == ADMIN_EMAIL))
-            if not admin:
-                admin = User(
-                    email=ADMIN_EMAIL,
-                    full_name=ADMIN_NAME,
-                    password_hash=hash_password(ADMIN_PASSWORD),
-                    role=UserRole.ADMIN,
-                )
-                session.add(admin)
-                await session.commit()
-                await session.refresh(admin)
-                log.info("Created admin user %s", ADMIN_EMAIL)
+            # Admin creation is deliberately explicit and interactive. Never seed a
+            # reusable credential into a build, even in offline mode.
+            admin = await session.scalar(
+                select(User).where(User.role == UserRole.ADMIN).order_by(User.id)
+            )
+            if admin is None:
+                log.info("No administrator exists; skipping offline showcase seed")
+                return
 
             # Ensure TRON chain row exists
             tron_chain = await session.scalar(select(Chain).where(Chain.code == ChainCode.TRON))

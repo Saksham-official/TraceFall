@@ -38,8 +38,9 @@ class Settings(BaseSettings):
     refresh_token_days: int = 7
     jwt_algorithm: str = "HS256"
 
-    # false serves everything from the committed fixture cache — the demo default.
-    live_mode: bool = False
+    # Live network retrieval is the product default. Set LIVE_MODE=false explicitly for
+    # the deterministic offline walkthrough and fixture tests.
+    live_mode: bool = True
 
     trongrid_base_url: str = "https://api.trongrid.io"
     trongrid_api_key: str = ""

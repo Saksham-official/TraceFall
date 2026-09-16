@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.db.models.enums import AnalysisStage, AnalysisStatus, TraceDirection
+from app.db.models.enums import AnalysisStage, AnalysisStatus, ChainCode, TraceDirection
 
 # The one place the analysis defaults are written down. The worker falls back to these
 # rather than repeating the literals, and `tests/test_demo_config.py` asserts that
@@ -42,6 +42,7 @@ class AnalysisOut(BaseModel):
     root_address_id: int
     # So the progress screen can name the address being analysed.
     root_address: str | None = None
+    root_chain: ChainCode | None = None
     status: AnalysisStatus
     stage: AnalysisStage | None
     progress_pct: int

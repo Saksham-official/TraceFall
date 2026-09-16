@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.core.deps import CurrentUser, SessionDep, get_accessible_case, require_role
 from app.core.exceptions import Conflict, NotFound
 from app.db.models.analysis import AnalysisRun
-from app.db.models.blockchain import Address
+from app.db.models.blockchain import Address, Chain
 from app.db.models.case import CaseAddress, CaseTimelineEvent
 from app.db.models.enums import AnalysisStatus, UserRole
 from app.db.models.user import User
@@ -93,6 +93,7 @@ _DERIVED_FIELDS = {"root_address", "partial_results_available"}
 async def _to_out(run: AnalysisRun, session: SessionDep) -> AnalysisOut:
     """One conversion, so status semantics cannot drift between endpoints."""
     address = await session.get(Address, run.root_address_id)
+    chain = await session.get(Chain, address.chain_id) if address else None
     return AnalysisOut(
         **{
             field: getattr(run, field)
@@ -100,6 +101,7 @@ async def _to_out(run: AnalysisRun, session: SessionDep) -> AnalysisOut:
             if field not in _DERIVED_FIELDS and hasattr(run, field)
         },
         root_address=address.address if address else None,
+        root_chain=chain.code if chain else None,
         partial_results_available=run.status in _HAS_RESULTS,
     )
 

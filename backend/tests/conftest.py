@@ -18,6 +18,9 @@ os.environ["DATABASE_URL"] = os.environ.get(
 )
 os.environ["REDIS_URL"] = os.environ.get("TEST_REDIS_URL", "redis://127.0.0.1:6379/15")
 os.environ["ENVIRONMENT"] = "development"
+# Tests that exercise the offline fixture path must opt into it explicitly. Production
+# configuration defaults to live retrieval.
+os.environ["LIVE_MODE"] = "false"
 # Off by default: a shared fixed-window bucket would otherwise be exhausted by one suite
 # and fail unrelated tests. The limiter has its own suite that turns it back on.
 os.environ["RATE_LIMIT_ENABLED"] = "false"
