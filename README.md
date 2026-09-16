@@ -5,7 +5,7 @@
 **Smart India Hackathon 2026 · PS 26183 · Blockchain & Cybersecurity**
 **Status: SIH 2026 shortlisted prototype**
 
-[SIH Presentation](Tracefall-Avengers.pdf) · [Problem Statement](https://sih.gov.in/sih2026PS) · [Live mode](#live-mode-versus-offline-mode)
+[SIH Presentation](Tracefall-Avengers.pdf) · [Problem Statement](https://zaidsayyed.in/tools/sih-problem-statements/sih26183) · [Video demo](#video-demo)
 
 ## The problem
 
@@ -381,8 +381,10 @@ npm run e2e
 ## Resources
 
 - **SIH Presentation:** [TraceFall — Avengers SIH 2026 presentation](Tracefall-Avengers.pdf)
-- **Problem Statement:** [SIH26183 — Real-Time Identification of Fraud-Linked Cryptocurrency Exchanges](https://sih.gov.in/sih2026PS)
-- **Project Demo:** `[Add recorded/live demo link]`
+- **Problem Statement:** [SIH26183 — Real-Time Identification of Fraud-Linked Cryptocurrency Exchanges](https://zaidsayyed.in/tools/sih-problem-statements/sih26183)
+### Video demo
+
+`[Add recorded/live demo link]`
 - **Project overview:** [Project overview](docs/PROJECT_OVERVIEW.md)
 - **System architecture:** [System architecture](docs/SYSTEM_ARCHITECTURE.md)
 - **Live deployment:** [Deployment guide](docs/DEPLOYMENT.md)
