@@ -2,13 +2,22 @@ import logging
 
 from sqlalchemy import select
 
-from app.db.session import SessionFactory
-from app.db.models.user import User
-from app.db.models.case import Case, CaseAddress
-from app.db.models.blockchain import Address, Chain
-from app.db.models.analysis import AnalysisRun
-from app.db.models.enums import UserRole, CaseStatus, Priority, AddressRole, ChainCode, AnalysisStatus
 from app.core.config import get_settings
+from app.db.models.analysis import AnalysisRun
+from app.db.models.blockchain import Address, Chain
+from app.db.models.case import Case, CaseAddress
+from app.db.models.enums import (
+    AddressRole,
+    AnalysisStatus,
+    CaseStatus,
+    ChainCode,
+    Priority,
+    ReportFormat,
+    ReportType,
+    UserRole,
+)
+from app.db.models.user import User
+from app.db.session import SessionFactory
 
 log = logging.getLogger(__name__)
 
@@ -49,7 +58,9 @@ async def seed_demo_data() -> None:
                 return
 
             # 2. Seed "Complex Fund Movement" case
-            complex_case = await session.scalar(select(Case).where(Case.title == COMPLEX_CASE_TITLE))
+            complex_case = await session.scalar(
+                select(Case).where(Case.title == COMPLEX_CASE_TITLE)
+            )
             if not complex_case:
                 complex_case = Case(
                     case_number="TF-2026-0001",
@@ -58,7 +69,8 @@ async def seed_demo_data() -> None:
                     fir_reference="FIR-2026/0492",
                     description=(
                         "Multi-hop laundering scheme featuring fund splitting, peel-chain layering "
-                        "across hub and branch wallets, fan-in consolidation, and automated VASP deposit address sweep."
+                        "across hub and branch wallets, fan-in consolidation, and automated VASP "
+                        "deposit address sweep."
                     ),
                     reported_loss_inr=1500000.00,
                     priority=Priority.HIGH,
@@ -72,7 +84,9 @@ async def seed_demo_data() -> None:
 
             # Ensure Address row for COMPLEX_ADDRESS
             complex_addr_row = await session.scalar(
-                select(Address).where(Address.chain_id == tron_chain.id, Address.address == COMPLEX_ADDRESS)
+                select(Address).where(
+                    Address.chain_id == tron_chain.id, Address.address == COMPLEX_ADDRESS
+                )
             )
             if not complex_addr_row:
                 complex_addr_row = Address(chain_id=tron_chain.id, address=COMPLEX_ADDRESS)
@@ -105,7 +119,9 @@ async def seed_demo_data() -> None:
                 await session.scalars(
                     select(AnalysisRun).where(
                         AnalysisRun.case_id == complex_case.id,
-                        AnalysisRun.status.in_([AnalysisStatus.FAILED, AnalysisStatus.RUNNING, AnalysisStatus.QUEUED]),
+                        AnalysisRun.status.in_(
+                            [AnalysisStatus.FAILED, AnalysisStatus.RUNNING, AnalysisStatus.QUEUED]
+                        ),
                     )
                 )
             ).all()
@@ -125,8 +141,8 @@ async def seed_demo_data() -> None:
 
             if not complex_run:
                 log.info("Running analysis pipeline for Complex Fund Movement...")
+                from app.reports.generator import generate as generate_report
                 from app.worker import _run_pipeline
-                from app.reports.generator import generate as generate_report, ReportFormat, ReportType
 
                 run = AnalysisRun(
                     case_id=complex_case.id,
@@ -147,15 +163,27 @@ async def seed_demo_data() -> None:
                 # Generate PDF report
                 try:
                     async with SessionFactory() as r_session:
-                        await generate_report(r_session, run.id, complex_case.id, admin.id, ReportFormat.PDF, ReportType.FULL)
+                        await generate_report(
+                            r_session,
+                            run.id,
+                            complex_case.id,
+                            admin.id,
+                            ReportFormat.PDF,
+                            ReportType.FULL,
+                        )
                         log.info("Generated PDF report for Complex Fund Movement")
                 except Exception as e:
                     log.warning("Report generation note: %s", e)
             else:
-                log.info("Completed analysis for Complex Fund Movement is present in DB (status: %s)", complex_run.status)
+                log.info(
+                    "Completed analysis for Complex Fund Movement is present in DB (status: %s)",
+                    complex_run.status,
+                )
 
             # 4. Seed "Binance Fraud Trail" case for live demo presentation
-            binance_case = await session.scalar(select(Case).where(Case.title == BINANCE_CASE_TITLE))
+            binance_case = await session.scalar(
+                select(Case).where(Case.title == BINANCE_CASE_TITLE)
+            )
             if not binance_case:
                 binance_case = Case(
                     case_number="TF-2026-0002",
@@ -163,8 +191,9 @@ async def seed_demo_data() -> None:
                     ncrp_reference="NCRP-2026-773104",
                     fir_reference="FIR-2026/0311",
                     description=(
-                        "Victim-reported fraud wallet receiving 100,000 USDT. Funds split across intermediary wallets, "
-                        "consolidated into a deposit address, and swept directly into a confirmed Binance collection wallet."
+                        "Victim-reported fraud wallet receiving 100,000 USDT. Funds split across "
+                        "intermediary wallets, consolidated into a deposit address, and swept "
+                        "directly into a confirmed Binance collection wallet."
                     ),
                     reported_loss_inr=8300000.00,
                     priority=Priority.CRITICAL,
@@ -177,7 +206,9 @@ async def seed_demo_data() -> None:
                 log.info("Created case: %s (%s)", binance_case.title, binance_case.case_number)
 
             binance_addr_row = await session.scalar(
-                select(Address).where(Address.chain_id == tron_chain.id, Address.address == BINANCE_ADDRESS)
+                select(Address).where(
+                    Address.chain_id == tron_chain.id, Address.address == BINANCE_ADDRESS
+                )
             )
             if not binance_addr_row:
                 binance_addr_row = Address(chain_id=tron_chain.id, address=BINANCE_ADDRESS)

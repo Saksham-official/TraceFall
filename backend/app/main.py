@@ -1,11 +1,11 @@
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-
-from contextlib import asynccontextmanager
 
 from app import __version__
 from app.api.middleware import AuditMiddleware, RequestContextMiddleware
@@ -23,7 +23,7 @@ settings = get_settings()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         await seed_demo_data()
     except Exception as e:

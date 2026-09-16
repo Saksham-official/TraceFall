@@ -106,9 +106,9 @@ export function AnalysisProgressPage() {
             </span>
           )}
         </div>
-        {run.root_address && (
+        {run.root_address && run.root_chain && (
           <div className="mt-2">
-          <AddressChip address={run.root_address} chain={run.root_chain ?? undefined} size="lg" />
+            <AddressChip address={run.root_address} chain={run.root_chain} size="lg" />
           </div>
         )}
       </div>
