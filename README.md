@@ -1,168 +1,390 @@
 # TraceFall
 
-**Automated blockchain analytics for cryptocurrency fraud investigation.**
+**A blockchain investigation and intelligence platform that turns a victim-reported cryptocurrency wallet address into an explainable fund-flow investigation.**
 
-Smart India Hackathon 2026 · Problem Statement **SIH26183** · Ministry of Home Affairs ·
-Blockchain & Cybersecurity
+**Smart India Hackathon 2026 · PS 26183 · Blockchain & Cybersecurity**
+**Status: SIH 2026 shortlisted prototype**
 
-> ### Status: the product runs, end to end, offline
-> `docker compose up` brings up five containers. An investigator signs in, enters a suspect
-> address, and the pipeline retrieves, normalizes, traces, builds the graph, detects patterns,
-> attributes entities and scores risk — then produces a hash-verified PDF for the case file.
-> 506 backend tests, 47 frontend tests and 5 browser end-to-end tests against the running
-> stack. Only **Phase 15 — demo hardening** remains; the optional ML classifier (Phase 9) is
-> deliberately not built. See [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
-
----
+[SIH Presentation](#resources) · [Project Demo](#resources) · [GitHub source](.)
 
 ## The problem
 
-**SIH26183 — Real-Time Identification of Fraud-Linked Cryptocurrency Exchanges from
-Victim-Reported Suspect Wallet Addresses through Automated Blockchain Analytics.**
+SIH Problem Statement 26183 asks for the real-time identification of fraud-linked cryptocurrency exchanges from victim-reported suspect wallet addresses through automated blockchain analytics.
 
-When a citizen reports a bank fraud, CFCFRMS knows immediately which institution received the
-money — the account number encodes the bank — and a freeze request goes out within minutes.
+When a bank-fraud victim reports an account number, the institution is usually identifiable from the banking route. A cryptocurrency wallet address is different: it is a pseudonymous destination, not an issuer, bank, or jurisdiction. Investigators must manually inspect public transactions, follow branches across addresses, decide which patterns matter, and determine whether a destination is an exchange deposit address.
 
-When the same citizen reports a **cryptocurrency** fraud, the wallet address they provide
-encodes nothing. No issuer, no routing, no jurisdiction. The investigator cannot tell whether
-`TXn8kL2m…` is a scammer's personal wallet or an exchange deposit address, has no automated way
-to follow the money, and therefore **has no one to send a freeze request to.**
+Blockchain data is public, but:
 
-Today this is done by hand: paste the address into a block explorer, click through transactions,
-give up after two hops. Six to twelve hours per address, usually ending in "unknown" — long
-after the funds have been withdrawn.
-
-## The solution
-
-TraceFall takes that address and, in about ninety seconds, produces an evidenced answer.
-
-```
-suspect address
-   → blockchain data retrieved and hashed as evidence
-   → transactions normalized to one chain-agnostic model
-   → funds traced across multiple hops with proportional attribution
-   → transaction graph constructed
-   → laundering patterns detected
-   → exchange / VASP attributed, with an explicit confidence tier
-   → risk scored, with every signal itemised
-   → investigation report generated
+```text
+Public blockchain data  ≠  ready-to-use investigation intelligence
 ```
 
-**Roughly 6–12 hours of manual tracing becomes about 45 minutes of reviewed work** — and the
-system follows every branch, not just the two an analyst has patience for.
+TraceFall adds that investigation layer: it converts raw transactions into fund flow, relationships, suspicious-pattern signals, possible VASP attribution, risk, and evidence.
 
-## Core capabilities
+## What TraceFall does
 
-| | |
+An investigator submits a suspect wallet reported by a victim. TraceFall then retrieves or replays blockchain data, normalizes it, follows the relevant asset across multiple hops, builds a graph, detects patterns, evaluates possible service attribution, scores risk, and produces a report that shows both findings and uncertainty.
+
+```text
+Victim-reported suspect wallet
+              ↓
+       Blockchain data
+              ↓
+       Multi-hop tracing
+              ↓
+     Transaction graph
+              ↓
+   Suspicious pattern detection
+              ↓
+      VASP / exchange analysis
+              ↓
+       Risk + confidence
+              ↓
+    Evidence & investigation report
+              ↓
+       Freeze-request support
+```
+
+The result is an investigative lead and an auditable fund-flow view — not an automatic finding of guilt and not an identification of the real-world person behind a wallet.
+
+## Why burner wallets do not end the investigation
+
+A burner wallet can hide a user's identity, but transactions involving that wallet remain observable on a public blockchain. TraceFall follows the movement of funds rather than assuming that the first wallet reveals the person behind it.
+
+**TraceFall traces funds; it does not automatically identify a real-world person.** Identifying an account holder requires information held by a VASP and an appropriate legal process.
+
+## Current prototype scope
+
+The working demonstration primarily uses:
+
+| Term | Meaning in this prototype |
 |---|---|
-| **Fund flow tracing** | Multi-hop, proportional (haircut) value attribution, configurable depth and thresholds, terminating honestly at service boundaries |
-| **Exchange / VASP identification** | Dataset matching plus a deposit-address funnel heuristic — **the answer to PS26183** |
-| **Three-tier attribution** | `CONFIRMED` / `PROBABLE` / `UNATTRIBUTED`, never collapsed, enforced by a database constraint |
-| **Pattern detection** | Fan-out, fan-in, rapid layering, peel chains, dormancy bursts, structuring — each disclosing its own false-positive modes |
-| **Transparent risk scoring** | 0–100 with every contributing signal, its raw value, weight, and points shown |
-| **Interactive graph** | Hierarchical fund-flow visualisation, with a text address list carrying the same information |
-| **Investigation reports** | PDF with evidence appendix, content hash, and explicit limitations |
-| **Evidence chain** | Every raw API response stored immutably with SHA-256 and retrieval timestamp |
+| **TRON** | Blockchain network used by the primary demonstration. |
+| **USDT / TRC-20** | A stablecoin transferred on the TRON network; this is the main traced asset in the demo. |
+| **Ethereum** | Implemented as a second adapter for native ETH, ERC-20, and internal transactions; it is not the primary presentation path. |
+| **VASP** | Virtual Asset Service Provider, such as a cryptocurrency exchange or custodial service. |
 
-### What it does not do
+Bitcoin, Solana, BSC, Polygon, privacy coins, and automated cross-chain bridge tracing are not implemented in the current prototype.
 
-Identify people · determine that fraud occurred · trace through mixers · follow funds across
-bridges automatically · integrate with NCRP · produce court-admissible evidence.
+## Investigator workflow
 
-[docs/LIMITATIONS.md](docs/LIMITATIONS.md) is the complete, deliberately blunt list. Knowing
-exactly where the system stops is what makes everything before that point trustworthy.
+### 01 — Submit
+
+The investigator creates a case and enters a victim-reported wallet address, chain, and optional reported amount/time.
+
+### 02 — Validate
+
+TraceFall validates the address before requesting blockchain data.
+
+### 03 — Trace
+
+The tracing engine follows the relevant asset across configured hops using proportional **haircut taint** tracking, depth limits, thresholds, fan-out caps, and edge budgets. A haircut is an attribution convention for pooled fungible assets, not a claim that coins can be physically separated.
+
+### 04 — Visualize
+
+Transfers become an interactive Cytoscape.js graph with an address list carrying the same information for readable review.
+
+### 05 — Detect
+
+Pattern detectors identify shapes such as fan-out, fan-in, rapid transfer/layering, peel chains, dormancy bursts, and structuring. Each is a signal with a documented false-positive mode, not proof of criminal activity.
+
+### 06 — Attribute
+
+TraceFall checks curated address labels and deposit-funnel behavior to determine whether a destination may be associated with a VASP or other service.
+
+### 07 — Assess
+
+The risk engine returns a 0–100 score, risk band, separate confidence, itemized signal contributions, and signals that could not be evaluated.
+
+### 08 — Preserve
+
+Raw provider responses, transaction references, findings, report metadata, and retrieval times are retained in the evidence layer. Reports are hash-verified with SHA-256.
+
+### 09 — Act
+
+A draft KYC/freeze-request document can be generated for investigator review. TraceFall does not send legal requests, freeze funds, recover assets, or hold private keys.
+
+## Key features
+
+| Capability | What is implemented |
+|---|---|
+| **Suspect wallet intake & validation** | Case-scoped intake with TRON and Ethereum address validation. |
+| **Blockchain data ingestion** | Provider adapters, pagination, rate limiting, caching, normalization, and partial-data handling. |
+| **Multi-hop fund-flow tracing** | Forward tracing with configurable depth, thresholds, fan-out caps, edge/address budgets, and explicit termination reasons. |
+| **Proportional value / taint tracking** | Haircut attribution for the selected asset, with pruning and completeness signals. |
+| **Interactive transaction graph** | Graph nodes and edges show addresses, transfers, risk, attribution tier, and evidence references. |
+| **Suspicious pattern detection** | Fan-out, fan-in, rapid transfer, peel chain, dormancy burst, and structuring detectors. |
+| **VASP / exchange attribution** | Curated label matching plus deterministic deposit-address funnel analysis. |
+| **Confidence-aware attribution** | `CONFIRMED`, `PROBABLE`, and `UNATTRIBUTED` remain separate in storage, API, UI, and reports. |
+| **Explainable risk scoring** | Versioned weighted rules, 0–100 score, risk band, confidence, raw values, weights, points, and unevaluated signals. |
+| **Investigation history and auditability** | Case-scoped access, RBAC, append-only audit logging, and analysis history. |
+| **Evidence integrity** | SHA-256 hashes for raw responses and generated reports, with retrieval/generation timestamps. |
+| **Investigation reports** | PDF, JSON, and CSV outputs; the PDF includes findings, limitations, and evidence references. |
+| **Freeze-request support** | Reviewable draft request text addressed to a supported service when the analysis provides an actionable attribution. |
+| **Offline deterministic demo mode** | Committed provider-response fixtures replayed through the same downstream analysis pipeline. |
+| **Live blockchain mode** | Opt-in provider retrieval when the required configuration/API access is available. |
+
+## How VASP / Binance identification works
+
+Exchange identification is based on **address attribution plus transaction behavior**, not magic and not identity resolution.
+
+```text
+Suspect wallet
+      ↓
+Intermediate wallets
+      ↓
+Potential deposit address
+      ↓
+Known/labeled Binance collection wallet
+```
+
+For a possible Binance deposit funnel, the system can examine signals such as:
+
+- repeated incoming deposits;
+- many counterparties;
+- short holding or dwell time;
+- sweep behavior into a known labeled collection wallet; and
+- the consistency of the destination and its surrounding activity.
+
+The result may be **`PROBABLE Binance`** with a confidence score and the signals behind it. A known Binance collection wallet appearing in a curated, dated first-party dataset can be **`CONFIRMED`** as that labeled address. Neither result proves that a particular person owns the upstream wallet.
+
+Similar funnel behavior can also come from payment processors, custodial services, OTC desks, other exchanges, or automated business sweepers. Therefore TraceFall uses:
+
+| Tier | Meaning |
+|---|---|
+| `CONFIRMED` | The address matches a named, dated public dataset. |
+| `PROBABLE` | Behavior and/or linked labels support an inference, with confidence and evidence shown. |
+| `UNATTRIBUTED` | The available data does not support a reliable attribution; the reason is shown. |
+
+The current curated Binance dataset contains TRON wallet labels from Binance's own proof-of-reserves disclosure. It is useful first-party provenance, but it is not a complete list of Binance deposit addresses.
+
+## Risk and pattern interpretation
+
+The risk engine is a transparent weighted rule system configured in `config/risk_weights.yaml`:
+
+- score range: **0–100**;
+- bands: `LOW` 0–24, `MEDIUM` 25–49, `HIGH` 50–74, `CRITICAL` 75–100;
+- every evaluated signal reports raw value, maximum weight, points, description, and evidence transactions;
+- unevaluated signals contribute no points and reduce confidence instead of being silently treated as safe; and
+- confidence is shown separately from the score.
+
+The score is an **investigative prioritization signal**, not a probability of fraud, criminal identity, or guilt. Legitimate high-volume services, payment processors, traders, arbitrage systems, and market makers can resemble suspicious patterns.
+
+## Evidence and reporting output
+
+At the end of an investigation, an investigator can review:
+
+- the connected transaction graph and text address list;
+- transfer amounts, timestamps, transaction hashes, asset contract identity, and trace termination reasons;
+- detected patterns with explanations and false-positive notes;
+- attribution tier, entity type, confidence, source, and supporting evidence;
+- risk score, band, confidence, itemized signals, and data-completeness warnings;
+- PDF, JSON, or CSV investigation reports; and
+- a reviewable VASP KYC/freeze-request draft where the analysis supports one.
+
+SHA-256 demonstrates that a stored response or report file has not changed since it was recorded. It does not prove that a provider's data was truthful, create a legally recognized chain of custody, or make a report court-admissible.
+
+## Demo cases and data provenance
+
+The demo configuration is in [`config/demo_addresses.yaml`](config/demo_addresses.yaml). It contains TRON case seeds for a headline multi-hop trace, fan-out behavior, funds that stop moving, an honestly unattributable low-history wallet, a configured Binance-funnel showcase, and a more complex laundering-shaped flow.
+
+The judge-facing walkthrough currently documents the measured headline, quiet-root, fan-out, and funds-not-moved cases. The Binance and laundering entries are explicit showcase configurations; their exact output must be verified with the repository's pre-flight check before presenting a particular attribution or score as a demonstrated result.
+
+### Primary — Binance fraud trail
+
+The intended showcase follows:
+
+```text
+Victim payment → suspect wallet → intermediary wallets
+                → potential deposit address
+                → labeled Binance collection wallet
+```
+
+It is designed to demonstrate the VASP attribution path and the distinction between a `PROBABLE` deposit address and a `CONFIRMED` labeled collection wallet. It is not evidence that Binance caused or participated in a fraud; it is an on-chain routing demonstration.
+
+### Fallback — complex fund movement
+
+The second showcase is designed to demonstrate branching, consolidation, peel-chain behavior, multiple hops, and a VASP deposit funnel. It is useful when the primary case is not suitable for the presentation environment.
+
+### Real versus synthetic data
+
+- The committed demo cache contains **frozen provider responses captured from public blockchain APIs** and is replayed offline. It is not live at presentation time, and the UI marks fixture/cached data accordingly.
+- Test-only golden scenarios and unit fixtures are synthetic and are used to exercise algorithms deterministically. They are not presented as real fraud incidents.
+- A wallet being on a public sanctions or label dataset is not, by itself, proof that a current investigation is a real fraud case.
+
+## Live mode versus offline mode
+
+### Live mode
+
+With `LIVE_MODE=true` and the required provider configuration, TraceFall can retrieve supported blockchain data from TronGrid for TRON and Blockscout/Etherscan-compatible providers for Ethereum. Live runs are subject to provider completeness, API limits, response changes, and network availability.
+
+### Offline demo mode
+
+`LIVE_MODE=false` is the default. The application reads committed, deterministic provider-response fixtures instead of making live network/API calls. The same normalization, tracing, graph, pattern, attribution, risk, and reporting pipeline runs downstream; the final investigation result is not hardcoded.
+
+Offline mode is for deterministic demonstrations and reliability when internet/API access is unavailable. It does not imply that production deployment must be offline.
 
 ## Architecture
 
+```text
+┌────────────────────────────┐
+│ Investigator UI             │ React + TypeScript + Cytoscape.js
+└──────────────┬─────────────┘
+               ↓
+┌────────────────────────────┐
+│ FastAPI API / auth / RBAC   │ validation and case isolation
+└──────────────┬─────────────┘
+               ↓
+┌────────────────────────────┐
+│ Orchestrator + async worker │ Redis-backed pipeline
+└──────────────┬─────────────┘
+               ↓
+┌────────────────────────────┐
+│ Data adapters               │ Live providers or fixture cache
+└──────────────┬─────────────┘
+               ↓
+┌────────────────────────────┐
+│ Normalize → trace → graph  │ canonical transfers and fund flow
+└──────────────┬─────────────┘
+               ↓
+┌────────────────────────────┐
+│ Patterns → attribution      │ deterministic, confidence-aware
+│ → risk                     │ intelligence
+└──────────────┬─────────────┘
+               ↓
+┌────────────────────────────┐
+│ Evidence and reports       │ PDF / CSV / JSON / request draft
+└────────────────────────────┘
 ```
-React + TypeScript SPA  (Cytoscape.js graph)
-          │
-      FastAPI  (auth · RBAC · validation · audit)
-          │
-  Investigation Orchestrator  →  Redis queue  →  async worker
-          │
-  ┌───────┴──────────────────────────────────────────┐
-  ingestion → normalize → intel → tracing → graph
-                 → patterns → attribution → risk → reports
-  └───────┬──────────────────────────────────────────┘
-          │
-   PostgreSQL 16  ·  Redis 7  ·  evidence file store
-```
 
-A **modular monolith with an async worker** — chosen because the pipeline takes 30–120 seconds
-against rate-limited APIs, and because microservices would buy scaling we do not need at the
-cost of a demo that fails when any container misbehaves (ADR-002).
+This is a modular monolith with an asynchronous worker. PostgreSQL stores case, analysis, graph, attribution, risk, audit, and report records; Redis provides queue/cache support; the evidence and report stores retain generated artifacts.
 
-## Stack
+## SIH PS 26183 alignment
 
-**Backend** Python 3.12 · FastAPI · SQLAlchemy · Alembic · NetworkX · ReportLab
-**Frontend** React 18 · TypeScript · Vite · Tailwind · Cytoscape.js · TanStack Query
-**Data** PostgreSQL 16 · Redis 7
-**Chains (MVP)** TRON and Ethereum, USDT-first — chosen because USDT-TRC20 is where Indian
-crypto fraud money actually goes (ADR-001)
-**Deployment** Docker Compose behind nginx
-**Not used** No ML model ships. The deposit-address classifier (Phase 9) was optional and cut;
-the shipped heuristic is deterministic and inspectable ([AI_ML_STRATEGY](docs/AI_ML_STRATEGY.md))
-
-## Documentation
-
-| | |
+| SIH requirement | TraceFall implementation |
 |---|---|
-| **Start here** | [PROJECT_OVERVIEW](docs/PROJECT_OVERVIEW.md) · [PROBLEM_ANALYSIS](docs/PROBLEM_ANALYSIS.md) · [MVP_SCOPE](docs/MVP_SCOPE.md) · [LIMITATIONS](docs/LIMITATIONS.md) |
-| **Product** | [PRODUCT_SPEC](docs/PRODUCT_SPEC.md) · [REQUIREMENTS](docs/REQUIREMENTS.md) · [USER_FLOWS](docs/USER_FLOWS.md) · [INVESTIGATOR_WORKFLOW](docs/INVESTIGATOR_WORKFLOW.md) · [FRONTEND_SPEC](docs/FRONTEND_SPEC.md) |
-| **Architecture** | [SYSTEM_ARCHITECTURE](docs/SYSTEM_ARCHITECTURE.md) · [DATA_ARCHITECTURE](docs/DATA_ARCHITECTURE.md) · [DATABASE_DESIGN](docs/DATABASE_DESIGN.md) · [API_SPEC](docs/API_SPEC.md) |
-| **Analytics** | [BLOCKCHAIN_ANALYTICS](docs/BLOCKCHAIN_ANALYTICS.md) · [WALLET_TRACING](docs/WALLET_TRACING.md) · [VASP_IDENTIFICATION](docs/VASP_IDENTIFICATION.md) · [GRAPH_ANALYTICS](docs/GRAPH_ANALYTICS.md) · [RISK_ENGINE](docs/RISK_ENGINE.md) · [AI_ML_STRATEGY](docs/AI_ML_STRATEGY.md) |
-| **Delivery** | [IMPLEMENTATION_PLAN](docs/IMPLEMENTATION_PLAN.md) · [TESTING_STRATEGY](docs/TESTING_STRATEGY.md) · [DEPLOYMENT](docs/DEPLOYMENT.md) · [DEMO_SCRIPT](docs/DEMO_SCRIPT.md) · [DATA_SOURCES](docs/DATA_SOURCES.md) |
-| **Governance** | [DECISIONS](docs/DECISIONS.md) · [SECURITY](docs/SECURITY.md) · [PRIVACY_AND_COMPLIANCE](docs/PRIVACY_AND_COMPLIANCE.md) · [OPEN_QUESTIONS](docs/OPEN_QUESTIONS.md) · [FUTURE_SCOPE](docs/FUTURE_SCOPE.md) |
+| Victim-reported suspect wallet | Case intake accepts and validates the reported wallet and chain. |
+| Automated blockchain tracing | Provider adapters and an asynchronous multi-stage analysis pipeline. |
+| Transaction graph analysis | Interactive graph plus a text representation of the same nodes and edges. |
+| Fund movement analysis | Multi-hop, asset-aware tracing with proportional value attribution. |
+| VASP/exchange identification | Curated address labels and deposit-funnel behavior analysis. |
+| Suspicious activity detection | Fan-out, fan-in, layering, peel-chain, dormancy-burst, and structuring signals. |
+| Risk categorization | Explainable 0–100 score, risk band, separate confidence, and itemized signals. |
+| Actionable intelligence | Destination, stopping reason, attribution evidence, and a possible VASP follow-up target. |
+| Investigation reports | PDF, JSON, and CSV report generation. |
+| Evidence generation | Raw-response capture, SHA-256 hashes, transaction references, timestamps, and audit trail. |
+| Scalable/multi-chain architecture | Chain adapters isolate TRON/Ethereum-specific retrieval and normalization from downstream analytics. |
 
-Contributors and future Claude Code sessions: start with [CLAUDE.md](CLAUDE.md).
+## Technology stack
 
-## Running it
+### Frontend
 
-```sh
+React 18, TypeScript, Vite, Tailwind CSS, React Router, TanStack Query, Cytoscape.js, Vitest, Testing Library, axe-core, and Playwright.
+
+### Backend
+
+Python 3.12, FastAPI, Uvicorn, Pydantic Settings, SQLAlchemy async, Alembic, PyJWT, Argon2, NetworkX, PyYAML, and ReportLab.
+
+### Database and infrastructure
+
+PostgreSQL 16, Redis 7, Docker Compose, and nginx-served frontend assets.
+
+### Blockchain and data providers
+
+TRON via TronGrid; Ethereum via Blockscout and optional Etherscan-compatible access. Curated labels are committed under `data/labels/`. No ML model ships in the current prototype; the attribution heuristic and risk engine are deterministic and inspectable.
+
+## Attribution boundaries and limitations
+
+TraceFall is deliberately bounded. It may have difficulty with:
+
+- fresh wallets with insufficient transaction history;
+- mixers and privacy-focused systems;
+- cross-chain movement and bridge correlation;
+- irregular exchange sweeps and shared deposit addresses;
+- off-chain exchange activity and internal customer transfers;
+- unknown services and stale or incomplete public labels;
+- provider rate limits, pagination/truncation, and unavailable data; and
+- swaps into another asset, because a trace follows one selected asset.
+
+The trace can stop at a confirmed service boundary, depth/threshold/budget limit, time window, no outflow, or unavailable data. It records why it stopped rather than silently presenting a smaller answer as complete.
+
+**A wallet receiving stolen funds is not automatically a criminal.** TraceFall identifies investigative leads and fund-flow evidence. It does not prove fraud, guilt, identity, ownership, or intent; it does not trace every cryptocurrency; and it does not replace legal process or commercial blockchain-intelligence platforms.
+
+## Where TraceFall fits
+
+Platforms such as Chainalysis, TRM Labs, and Elliptic already provide advanced enterprise blockchain intelligence. TraceFall is not positioned as a replacement for them.
+
+Its focus is a narrower, practical first-level workflow: start from a victim-reported suspect wallet and guide an investigator through tracing, pattern analysis, VASP attribution, risk assessment, and evidence generation in one case-scoped application.
+
+## Security and evidence design
+
+Implemented safeguards include:
+
+- case-scoped RBAC and access isolation;
+- validation at API boundaries and rate limiting;
+- append-only audit logging for reads and state-changing actions;
+- no victim PII or KYC data stored; reference numbers are stored as references;
+- raw provider responses stored with SHA-256 and retrieval metadata;
+- generated reports stored with their content hash;
+- explicit attribution tiers and confidence rather than collapsed guesses; and
+- visible data-completeness, truncation, fixture, and limitation warnings.
+
+These mechanisms improve reproducibility and accountability. They are not a claim of legal certification or court admissibility.
+
+## Project status and future scope
+
+**Implemented now:** end-to-end case intake, supported-chain ingestion, normalization, multi-hop tracing, graphing, pattern detection, VASP attribution, risk scoring, evidence capture, audit logging, reports, freeze-request drafting, live-provider configuration, and deterministic offline replay.
+
+**Future scope:** broader Bitcoin support, deeper Ethereum and additional EVM-chain coverage, automated cross-chain correlation, richer VASP datasets, calibrated learning from reviewed investigator outcomes, production-scale indexing, and integration with government cybercrime complaint systems after the required partnership and approvals.
+
+## Quick start
+
+### Local Docker development
+
+```bash
+git clone <repository-url>
+cd TraceFall
 cp .env.example .env
-./scripts/generate-secret.sh >> .env                      # writes SECRET_KEY
-docker compose up -d                                      # api · worker · web · postgres · redis
+./scripts/generate-secret.sh >> .env
+docker compose up -d
 docker compose exec api alembic upgrade head
 docker compose exec api python -m app.cli load-labels
-docker compose exec api python -m app.cli create-admin    # interactive; no seeded credentials
+docker compose exec api python -m app.cli create-admin
 open http://localhost
 ```
 
-Seven commands, one of them interactive, all of them verified. `LIVE_MODE=false` is the
-default, so a fresh clone needs no API keys and makes no network calls — it replays the
-committed fixture cache, and every screen says so. Detail:
-[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+The `create-admin` command is interactive. The default `.env.example` configuration uses `LIVE_MODE=false`, so the application does not need blockchain API keys for the offline path.
 
-Backend checks: `cd backend && pip install -e '.[dev]' && ruff check . && mypy app && pytest`
-Frontend checks: `cd frontend && npm ci && npm run lint && npm run typecheck && npm test`
-Browser end-to-end, against a running stack: `cd frontend && npm run e2e`
+### Demo mode
 
-## What is measured, not asserted
+After the stack is running, verify the committed demo snapshot:
 
-- **Deposit-address heuristic: precision 0.989, recall 0.186** against Binance's own published
-  deposit addresses, with the exchange's hot and cold wallets as deliberately hard negatives
-  ([research note](docs/research/OQ-09-deposit-heuristic-precision.md)). The recall figure is
-  the honest one: roughly four in five real deposit addresses have too little history to
-  classify, and those are reported `UNATTRIBUTED` with a reason. **The precision must never be
-  quoted without the recall beside it.**
-- **`CONFIRMED` attribution rests on first-party data.** 405 OFAC-designated addresses and 17
-  Binance TRON wallets taken from Binance's own proof-of-reserves disclosure — the operator
-  naming its own wallets. No third-party explorer scrape is used, and
-  [ADR-018](docs/DECISIONS.md) records why one was rejected.
-- **Provider rate limits, measured:** TronGrid without a key sustains about 0.5 req/s per RPC
-  method ([research note](docs/research/OQ-01-provider-rate-limits.md)). The ninety-second
-  target holds against the fixture cache, not a cold live trace.
-- **Regression locks:** a golden case pins every number the pipeline produces, and the
-  Playwright suite guards what only a real browser reaches.
+```bash
+cd backend && pip install -e '.[dev]' && cd ..
+python3 scripts/demo_fixtures.py --check
+```
 
-## A note on honesty
+Use an address from [`config/demo_addresses.yaml`](config/demo_addresses.yaml) for a deterministic walkthrough. The check replays the trace through the real tracing engine and reports missing fixtures or drift in the configured expected graph size.
 
-This system deals with criminal investigations. A wrong attribution sends a legal request to the
-wrong institution; a hallucinated address in a report ends up in a case file. So the
-architecture is built around a single discipline: **observed facts, probabilistic inferences,
-and things we simply cannot know are kept visibly separate at every layer** — in the database
-constraints, the API shape, the interface, and the printed report.
+### Live mode
 
-An address the system cannot identify is reported as unidentified, with an explanation of what
-would be needed. That answer is not a gap in the product. It is the product working correctly.
+Set `LIVE_MODE=true` in `.env` and configure the provider variables documented in [`.env.example`](.env.example), such as `TRONGRID_API_KEY` and `ETHERSCAN_API_KEY` where required. Live analysis is provider-dependent and may be slower or partial because of rate limits and public-data availability.
+
+### Developer checks
+
+```bash
+cd backend && pip install -e '.[dev]' && ruff check . && mypy app && pytest
+cd ../frontend && npm ci && npm run lint && npm run typecheck && npm test
+npm run e2e
+```
+
+## Resources
+
+- **SIH Presentation:** [TraceFall team briefing PDF](TraceFall-Team-Briefing.pdf) · `[Add SIH PPT Drive Link]`
+- **Project Demo:** `[Add recorded/live demo link]`
+- **GitHub Repository:** [This repository](.)
+- **Detailed documentation:** [Project overview](docs/PROJECT_OVERVIEW.md), [demo script](docs/DEMO_SCRIPT.md), [system architecture](docs/SYSTEM_ARCHITECTURE.md), [VASP identification](docs/VASP_IDENTIFICATION.md), [risk engine](docs/RISK_ENGINE.md), and [limitations](docs/LIMITATIONS.md).
+
+## License
+
+No license file or license declaration is currently included in the repository.
