@@ -40,14 +40,15 @@ async def record(
     case_id: uuid.UUID | None,
     analysis_run_id: uuid.UUID | None = None,
 ) -> EvidenceItem | None:
-    """Persist a response as evidence. Cache hits are not re-recorded.
+    """Persist a response as evidence for this investigation.
 
+    A Redis cache hit is still evidence for the current run. The response may have been
+    retrieved by an earlier investigation, but omitting it here would leave the current
+    report with no raw-response catalogue entry to explain its normalized transfers.
     Storage failure is logged and swallowed: losing the evidence catalogue entry must not
-    fail an investigation that otherwise succeeded. The gap is visible because the
-    response's own hash is still reported upstream.
+    fail an investigation that otherwise succeeded. The gap remains visible because the
+    response hash is carried by the retrieval summary.
     """
-    if response.from_cache:
-        return None
     try:
         path, size = write_body(response.body, case_id)
     except OSError:

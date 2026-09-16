@@ -125,6 +125,7 @@ async def fetch(
 
         if response.status_code >= 400:
             # A 4xx is the provider's considered answer, not a transient fault.
+            await status.record(provider, False, f"HTTP {response.status_code}")
             raise ProviderUnavailable(f"{provider} returned {response.status_code}")
 
         await status.record(provider, True)

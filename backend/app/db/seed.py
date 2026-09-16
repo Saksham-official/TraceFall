@@ -1,5 +1,7 @@
 import logging
+
 from sqlalchemy import select
+
 from app.db.session import SessionFactory
 from app.db.models.user import User
 from app.db.models.case import Case, CaseAddress
