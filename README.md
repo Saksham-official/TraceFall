@@ -220,7 +220,7 @@ With `LIVE_MODE=true` and the required provider configuration, TraceFall can ret
 
 ### Offline demo mode
 
-`LIVE_MODE=false` is the default. The application reads committed, deterministic provider-response fixtures instead of making live network/API calls. The same normalization, tracing, graph, pattern, attribution, risk, and reporting pipeline runs downstream; the final investigation result is not hardcoded.
+`LIVE_MODE=false` is an explicit offline mode. The application reads committed, deterministic provider-response fixtures instead of making live network/API calls. The same normalization, tracing, graph, pattern, attribution, risk, and reporting pipeline runs downstream; the final investigation result is not hardcoded.
 
 Offline mode is for deterministic demonstrations and reliability when internet/API access is unavailable. It does not imply that production deployment must be offline.
 

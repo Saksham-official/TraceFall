@@ -162,8 +162,8 @@ These are binding. A change that violates one needs an ADR in
 9. **Security and privacy are first-class.** Case isolation, RBAC, append-only audit logging,
    input validation at the boundary. **No victim PII is ever stored** — reference numbers only.
 10. **Never expose secrets.** No key in source, logs, responses, or image layers. No default
-    credentials in any build, ever. `LIVE_MODE=false` is the default so a fresh clone needs no
-    keys at all.
+    credentials in any build, ever. `LIVE_MODE=true` is the product default; `LIVE_MODE=false`
+    is an explicit offline/demo setting.
 11. **Never fabricate blockchain data.** Synthetic data is for training and tests only, flagged
     at row level, visibly labelled wherever it surfaces, and never in the demo. The demo uses
     **real chain data, frozen** — always with its "cached snapshot" banner.

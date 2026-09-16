@@ -18,14 +18,11 @@ from app.db.models.user import User
 from app.db.models.case import Case, CaseAddress
 from app.db.models.blockchain import Address, Chain
 from app.db.models.analysis import AnalysisRun
-from app.db.models.enums import UserRole, CaseStatus, Priority, AddressRole, ChainCode, AnalysisStatus
-from app.core.security import hash_password
+from app.db.models.enums import CaseStatus, Priority, AddressRole, ChainCode, AnalysisStatus
 from app.worker import _run_pipeline
 from app.reports.generator import generate as generate_report, ReportFormat, ReportType
 
-ADMIN_EMAIL = "admin@example.gov"
-ADMIN_NAME = "Demo Admin"
-ADMIN_PASSWORD = "TraceFall2026!"
+ADMIN_EMAIL = os.environ.get("DEMO_ADMIN_EMAIL", "admin@example.gov")
 
 COMPLEX_CASE_TITLE = "Complex Fund Movement"
 COMPLEX_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8uo1syi2Ves"
@@ -39,16 +36,9 @@ async def seed():
         # 1. Ensure admin user exists
         admin = await session.scalar(select(User).where(User.email == ADMIN_EMAIL))
         if not admin:
-            admin = User(
-                email=ADMIN_EMAIL,
-                full_name=ADMIN_NAME,
-                password_hash=hash_password(ADMIN_PASSWORD),
-                role=UserRole.ADMIN,
+            raise RuntimeError(
+                f"No admin {ADMIN_EMAIL} exists. Run 'python -m app.cli create-admin' first."
             )
-            session.add(admin)
-            await session.commit()
-            await session.refresh(admin)
-            print(f"Created admin user {ADMIN_EMAIL}")
 
         # Ensure TRON chain row exists
         tron_chain = await session.scalar(select(Chain).where(Chain.code == ChainCode.TRON))

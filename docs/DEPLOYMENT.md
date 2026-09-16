@@ -56,7 +56,7 @@ SECRET_KEY=                        # required; generated at setup
 DATABASE_URL=postgresql+asyncpg://tracefall:...@postgres:5432/tracefall
 REDIS_URL=redis://redis:6379/0
 
-LIVE_MODE=false                    # false = fixture cache (DEMO DEFAULT)
+LIVE_MODE=true                     # live provider retrieval (product default)
 TRONGRID_API_KEY=
 ETHERSCAN_API_KEY=
 BLOCKSCOUT_BASE_URL=https://eth.blockscout.com
@@ -74,9 +74,9 @@ EVIDENCE_STORAGE_PATH=/data/evidence
 CORS_ORIGINS=http://localhost
 ```
 
-**`LIVE_MODE=false` is the default.** A fresh clone runs the demo path with no API keys and no
-network. Live mode is opt-in, which is the correct default for a system whose worst failure
-mode is a rate-limited demo.
+**`LIVE_MODE=true` is the default.** Set `LIVE_MODE=false` explicitly for the deterministic
+offline fixture walkthrough. Live deployments must configure the provider endpoints and any
+required credentials before investigators start a run.
 
 **`SECRET_KEY` has no default.** The app refuses to start without one. A committed default
 secret key is how prototypes get compromised.

@@ -17,9 +17,9 @@ from fastapi.responses import FileResponse
 from sqlalchemy import select
 
 from app.core.deps import SessionDep, get_accessible_case, require_role
-from app.core.exceptions import NotFound, StorageUnavailable
+from app.core.exceptions import Conflict, NotFound, StorageUnavailable
 from app.db.models.analysis import AnalysisRun
-from app.db.models.enums import ReportFormat, ReportType, UserRole
+from app.db.models.enums import AnalysisStatus, ReportFormat, ReportType, UserRole
 from app.db.models.output import Report
 from app.db.models.user import User
 from app.reports import assemble, freeze_request, generator
@@ -64,6 +64,8 @@ async def create_report(
     run = await session.get(AnalysisRun, payload.analysis_run_id)
     if run is None or run.case_id != case_id:
         raise NotFound("Analysis run not found on this case")
+    if run.status not in (AnalysisStatus.COMPLETED, AnalysisStatus.PARTIAL):
+        raise Conflict("Reports are available only after an analysis completes")
 
     try:
         generated = await generator.generate(
@@ -149,6 +151,8 @@ async def get_freeze_request(
     if run is None:
         raise NotFound("Analysis run not found")
     await get_accessible_case(run.case_id, user, session)
+    if run.status not in (AnalysisStatus.COMPLETED, AnalysisStatus.PARTIAL):
+        raise Conflict("A freeze request is available only after an analysis completes")
 
     data = await assemble.gather(session, run_id)
     to = freeze_request.recipient(data)
