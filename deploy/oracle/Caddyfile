@@ -1,0 +1,5 @@
+# Replace this with the VM's stable public hostname. A hostname such as
+# 203.0.113.10.sslip.io also works when a custom domain is unavailable.
+YOUR_BACKEND_HOSTNAME {
+    reverse_proxy 127.0.0.1:8080
+}

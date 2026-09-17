@@ -1,0 +1,6 @@
+services:
+  # Caddy on the Oracle VM terminates HTTPS. Keep the container private so the only
+  # public entry point is the TLS reverse proxy.
+  web:
+    ports:
+      - "127.0.0.1:8080:80"

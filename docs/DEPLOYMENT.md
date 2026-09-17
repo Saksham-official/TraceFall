@@ -1,5 +1,10 @@
 # Deployment
 
+For a $0 public deployment that keeps the existing FastAPI, Redis worker, PostgreSQL, and
+filesystem evidence topology together, follow [`deploy/oracle/README.md`](../deploy/oracle/README.md).
+It uses Oracle Cloud Always Free compute with a persistent VM volume and Caddy HTTPS. The
+Compose walkthrough below remains the local/development reference.
+
 **Target: `docker compose up` and the system runs (NFR-11).** Everything else is future.
 
 **Verified 2026-09-05** on macOS/arm64, Docker 29.7.2, Compose v5.5.0. Five containers reach
