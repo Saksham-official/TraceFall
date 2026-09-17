@@ -33,6 +33,11 @@ const PROOF = [
 
 const PIPELINE = ['Retrieve', 'Trace', 'Graph', 'Patterns', 'Attribute', 'Risk', 'Report']
 
+// Public, demo-only access for reviewers. This account has no production data or
+// privileges beyond the deterministic showcase workspace.
+const DEMO_EMAIL = 'investigator@tracefall.gov'
+const DEMO_PASSWORD = 'TraceFall2026!'
+
 export function LoginPage() {
   const { user, sessionExpired, login } = useAuth()
   const location = useLocation()
@@ -52,6 +57,18 @@ export function LoginPage() {
     setBusy(true)
     try {
       await login(email, password)
+    } catch (caught) {
+      setError(errorMessage(caught))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function startDemo() {
+    setError(null)
+    setBusy(true)
+    try {
+      await login(DEMO_EMAIL, DEMO_PASSWORD)
     } catch (caught) {
       setError(errorMessage(caught))
     } finally {
@@ -173,6 +190,24 @@ export function LoginPage() {
                 {busy ? 'Signing in…' : 'Sign in'}
               </Button>
             </form>
+          </Card>
+
+          <Card className="mt-3 border-[var(--accent)]/25 bg-[var(--accent-soft)]">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold">Explore the demo workspace</p>
+                <p className="text-meta mt-0.5">Open the prepared investigation in one click.</p>
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                loading={busy}
+                onClick={() => void startDemo()}
+                className="shrink-0 border-[var(--accent)]/35 text-[var(--accent)] hover:border-[var(--accent)]"
+              >
+                Get started
+              </Button>
+            </div>
           </Card>
 
           <p className="text-meta mt-4">
