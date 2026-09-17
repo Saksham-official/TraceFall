@@ -26,9 +26,19 @@ services:
           name: tracefall-db
           property: connectionString
       - key: REDIS_URL
-        sync: false
+        fromService:
+          name: tracefall-cache
+          type: keyvalue
+          property: connectionString
       - key: CORS_ORIGINS
         sync: false
+
+  - type: keyvalue
+    name: tracefall-cache
+    plan: free
+    region: oregon
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
 
 databases:
   - name: tracefall-db

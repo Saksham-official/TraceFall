@@ -10,8 +10,15 @@ plan is credit-limited rather than an always-on free tier. Its trial is temporar
 volumes are not a durable SIH production-storage solution; use the Railway procedure only
 for a short submission window and monitor usage.
 
-Render is supported by [`render.yaml`](../render.yaml) for deploying the Dockerized backend
-and a free managed PostgreSQL database. Health checks are served at `/api/health`.
+Render is supported by [`render.yaml`](../render.yaml) for deploying the Dockerized backend,
+free managed PostgreSQL, and managed Key Value (Redis). Health checks are served at
+`/api/health`.
+
+For Render, sync the Blueprint so it creates `tracefall-cache` and wires `REDIS_URL` from
+that service. Set the `CORS_ORIGINS` environment variable on `tracefall-api` to the exact
+HTTPS origin of the deployed frontend (for example, `https://your-app.vercel.app`), then
+redeploy. The production guard intentionally rejects the local `http://localhost` default,
+wildcard origins, missing Redis, and non-`none` refresh-cookie SameSite settings.
 
 **Target: `docker compose up` and the system runs (NFR-11).** Everything else is future.
 

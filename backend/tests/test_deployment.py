@@ -24,6 +24,7 @@ from app.risk import config as risk_config
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = yaml.safe_load((ROOT / "docker-compose.yml").read_text())
 BACKEND_DOCKERFILE = (ROOT / "backend" / "Dockerfile").read_text()
+RENDER = yaml.safe_load((ROOT / "render.yaml").read_text())
 
 
 def copied(dockerfile: str) -> list[str]:
@@ -194,3 +195,24 @@ def test_the_settings_the_container_overrides_are_all_documented() -> None:
     for name in ("EVIDENCE_STORAGE_PATH", "REPORT_STORAGE_PATH", "RISK_CONFIG_PATH"):
         assert f"{name}=" in example, f"{name} is not in .env.example"
     assert get_settings().environment in ("development", "production")
+
+
+def test_render_provisions_and_wires_managed_redis() -> None:
+    services = {service["name"]: service for service in RENDER["services"]}
+    web = services["tracefall-api"]
+    cache = services["tracefall-cache"]
+    redis = next(variable for variable in web["envVars"] if variable["key"] == "REDIS_URL")
+
+    assert cache["type"] == "keyvalue"
+    assert redis["fromService"] == {
+        "name": "tracefall-cache",
+        "type": "keyvalue",
+        "property": "connectionString",
+    }
+
+
+def test_render_keeps_frontend_origin_explicit() -> None:
+    web = next(service for service in RENDER["services"] if service["name"] == "tracefall-api")
+    cors = next(variable for variable in web["envVars"] if variable["key"] == "CORS_ORIGINS")
+
+    assert cors == {"key": "CORS_ORIGINS", "sync": False}
