@@ -53,7 +53,7 @@ LOGIN_PER_IP = Limit(requests=10, window_seconds=60)
 
 LOGIN_PATHS = frozenset({"/api/v1/auth/login", "/api/v1/auth/refresh"})
 # Health is polled by container orchestration, which must never be throttled out.
-EXEMPT_PATHS = frozenset({"/api/v1/health", "/docs", "/openapi.json"})
+EXEMPT_PATHS = frozenset({"/api/v1/health", "/api/health", "/health", "/docs", "/openapi.json"})
 
 
 async def hit(bucket: str, limit: Limit) -> tuple[bool, int]:

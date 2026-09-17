@@ -45,6 +45,16 @@ def test_alembic_url_drops_the_async_driver() -> None:
     assert settings.sync_database_url == "postgresql://u:p@h:5432/d"
 
 
+def test_database_url_normalizes_for_asyncpg() -> None:
+    settings = Settings(  # type: ignore[call-arg]
+        _env_file=None,
+        secret_key="x" * 32,
+        database_url="postgres://u:p@h:5432/d",
+    )
+    assert settings.database_url == "postgresql+asyncpg://u:p@h:5432/d"
+    assert settings.sync_database_url == "postgresql://u:p@h:5432/d"
+
+
 @pytest.mark.parametrize(
     "message",
     [
@@ -70,6 +80,13 @@ async def test_health_reports_version_and_mode(client: AsyncClient) -> None:
     assert body["version"] == __version__
     assert body["providers"] == []  # populated in Phase 3
     assert body["queue_reachable"] is True
+
+
+async def test_simple_health_ping(client: AsyncClient) -> None:
+    for path in ("/api/health", "/health"):
+        response = await client.get(path)
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
 
 
 async def test_unhandled_errors_leak_nothing(client: AsyncClient) -> None:

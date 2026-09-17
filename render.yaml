@@ -1,0 +1,39 @@
+services:
+  # Web service: TraceFall FastAPI application and worker
+  - type: web
+    name: tracefall-api
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon
+    healthCheckPath: /api/health
+    dockerCommand: /bin/sh -c "alembic upgrade head && python -m app.cli load-labels && (python -m app.worker &) && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: LIVE_MODE
+        value: "false"
+      - key: RATE_LIMIT_ENABLED
+        value: "true"
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
+      - key: REFRESH_COOKIE_SAMESITE
+        value: "none"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tracefall-db
+          property: connectionString
+      - key: REDIS_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+
+databases:
+  - name: tracefall-db
+    databaseName: tracefall
+    user: tracefall
+    plan: free
+    region: oregon

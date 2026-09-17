@@ -10,6 +10,9 @@ plan is credit-limited rather than an always-on free tier. Its trial is temporar
 volumes are not a durable SIH production-storage solution; use the Railway procedure only
 for a short submission window and monitor usage.
 
+Render is supported by [`render.yaml`](../render.yaml) for deploying the Dockerized backend
+and a free managed PostgreSQL database. Health checks are served at `/api/health`.
+
 **Target: `docker compose up` and the system runs (NFR-11).** Everything else is future.
 
 **Verified 2026-09-05** on macOS/arm64, Docker 29.7.2, Compose v5.5.0. Five containers reach

@@ -7,7 +7,7 @@ so .env.example can stay ahead of the code as later phases land.
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Values that have appeared in example files and tutorials. Not an exhaustive list — the
@@ -33,6 +33,16 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://tracefall:tracefall@localhost:5432/tracefall"
     redis_url: str = "redis://localhost:6379/0"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _normalize_database_url(cls, v: str) -> str:
+        """Ensure the URL uses the asyncpg driver even if provided as postgres://."""
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgresql://") and "+asyncpg" not in v:
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return v
 
     access_token_minutes: int = 15
     refresh_token_days: int = 7
