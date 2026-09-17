@@ -59,6 +59,13 @@ app.add_middleware(
 app.include_router(v1_router)
 
 
+@app.get("/api/health", tags=["health"], summary="Lightweight health ping")
+@app.get("/health", tags=["health"], summary="Lightweight health ping")
+async def ping() -> dict[str, str]:
+    """Lightweight ping endpoint for uptime monitors and container keep-alive."""
+    return {"status": "ok"}
+
+
 def _request_id(request: Request) -> str:
     return getattr(request.state, "request_id", "-")
 

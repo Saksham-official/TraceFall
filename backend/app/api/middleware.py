@@ -22,7 +22,7 @@ from app.db.session import SessionFactory
 MUTATING_METHODS = {"POST", "PATCH", "PUT", "DELETE"}
 _CASE_UUID = re.compile(r"/cases/([0-9a-fA-F-]{36})")
 # Health and auth are noise or handled separately; login failures are logged by the route.
-_SKIP_PATHS = ("/api/v1/health", "/docs", "/openapi.json")
+_SKIP_PATHS = ("/api/v1/health", "/api/health", "/health", "/docs", "/openapi.json")
 
 
 class RequestContextMiddleware(BaseHTTPMiddleware):
