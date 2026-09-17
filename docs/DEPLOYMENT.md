@@ -20,6 +20,10 @@ HTTPS origin of the deployed frontend (for example, `https://your-app.vercel.app
 redeploy. The production guard intentionally rejects the local `http://localhost` default,
 wildcard origins, missing Redis, and non-`none` refresh-cookie SameSite settings.
 
+If Render Shell is unavailable, set `DEMO_ADMIN_EMAIL`, `DEMO_ADMIN_PASSWORD`, and
+optionally `DEMO_ADMIN_NAME` on `tracefall-api`, then redeploy once. Startup creates that
+administrator only when the email does not already exist; it never overwrites an account.
+
 **Target: `docker compose up` and the system runs (NFR-11).** Everything else is future.
 
 **Verified 2026-09-05** on macOS/arm64, Docker 29.7.2, Compose v5.5.0. Five containers reach

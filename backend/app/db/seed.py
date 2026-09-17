@@ -3,6 +3,7 @@ import logging
 from sqlalchemy import select
 
 from app.core.config import get_settings
+from app.core.security import hash_password
 from app.db.models.analysis import AnalysisRun
 from app.db.models.blockchain import Address, Chain
 from app.db.models.case import Case, CaseAddress
@@ -29,21 +30,44 @@ BINANCE_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8unyw8chUDN"
 
 
 async def seed_demo_data() -> None:
-    """Populate the optional offline showcase, never the live product.
+    """Bootstrap an explicitly configured demo admin and optional offline showcase.
 
     Live deployments must start empty apart from migrated reference data. In particular,
     startup must not create a demo user, demo cases, or an analysis that could be mistaken
     for a live investigation. Offline showcase data is only attached to an administrator
     that was created explicitly with ``tracefall create-admin``.
     """
-    if get_settings().live_mode:
-        log.info("LIVE_MODE=true; skipping offline showcase seed")
-        return
+    settings = get_settings()
 
     try:
         async with SessionFactory() as session:
-            # Admin creation is deliberately explicit and interactive. Never seed a
-            # reusable credential into a build, even in offline mode.
+            # Render's free tier may not expose a shell. Permit an operator to provide
+            # an explicit demo credential through secret environment variables instead.
+            # Never overwrite an existing account or create a credential from defaults.
+            if settings.demo_admin_email and settings.demo_admin_password:
+                existing = await session.scalar(
+                    select(User).where(User.email == settings.demo_admin_email.lower())
+                )
+                if existing is None:
+                    if len(settings.demo_admin_password) < 12:
+                        log.error("DEMO_ADMIN_PASSWORD must be at least 12 characters")
+                    else:
+                        session.add(
+                            User(
+                                email=settings.demo_admin_email.lower(),
+                                password_hash=hash_password(settings.demo_admin_password),
+                                full_name=settings.demo_admin_name,
+                                role=UserRole.ADMIN,
+                            )
+                        )
+                        await session.commit()
+                        log.info("Created configured demo administrator")
+
+            if settings.live_mode:
+                log.info("LIVE_MODE=true; skipping offline showcase seed")
+                return
+
+            # Showcase data is attached only to an explicitly created administrator.
             admin = await session.scalar(
                 select(User).where(User.role == UserRole.ADMIN).order_by(User.id)
             )

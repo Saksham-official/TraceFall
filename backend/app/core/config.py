@@ -84,6 +84,12 @@ class Settings(BaseSettings):
     # cross-site refresh cookie; local same-origin development remains SameSite=Lax.
     refresh_cookie_samesite: Literal["lax", "none", "strict"] = "lax"
 
+    # Optional one-time/demo account bootstrap. Credentials are supplied by the
+    # deployment environment, never committed or exposed through the API.
+    demo_admin_email: str = ""
+    demo_admin_password: str = ""
+    demo_admin_name: str = "TraceFall Investigator"
+
     # Defaults tuned to the measured provider rates: at 0.5 req/s per TronGrid method,
     # 120s buys roughly 60 uncached addresses. Depth 5 / fan-out 20 is the design target
     # and remains available; these are what fits the time budget on a cold cache.
