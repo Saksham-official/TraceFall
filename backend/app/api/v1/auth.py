@@ -45,7 +45,7 @@ def _write_refresh_cookie(response: Response, token: str, max_age: int) -> None:
         token,
         max_age=max_age,
         httponly=True,
-        samesite="lax",
+        samesite=get_settings().refresh_cookie_samesite,
         secure=get_settings().environment == "production",
         path=REFRESH_COOKIE_PATH,
     )

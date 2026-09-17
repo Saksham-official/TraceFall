@@ -15,7 +15,11 @@
 
 import type { ApiErrorBody, TokenResponse } from './types'
 
-const BASE = '/api/v1'
+// Vercel serves the SPA independently from the API. Keep the same-origin default for
+// the Docker/nginx development stack, while allowing the deployed build to point at the
+// public FastAPI origin without leaking any server-side credentials into the bundle.
+const configuredApiOrigin = import.meta.env.VITE_API_URL?.trim().replace(/\/+$/, '')
+const BASE = configuredApiOrigin ? `${configuredApiOrigin}/api/v1` : '/api/v1'
 
 export class ApiError extends Error {
   constructor(

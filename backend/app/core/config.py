@@ -70,6 +70,9 @@ class Settings(BaseSettings):
     page_size: int = 200
 
     cors_origins: str = "http://localhost"
+    # A Vercel SPA and a separately hosted API are cross-site. Production uses a Secure,
+    # cross-site refresh cookie; local same-origin development remains SameSite=Lax.
+    refresh_cookie_samesite: Literal["lax", "none", "strict"] = "lax"
 
     # Defaults tuned to the measured provider rates: at 0.5 req/s per TronGrid method,
     # 120s buys roughly 60 uncached addresses. Depth 5 / fan-out 20 is the design target
@@ -127,6 +130,8 @@ class Settings(BaseSettings):
             problems.append("RATE_LIMIT_ENABLED is false")
         if "localhost" in self.database_url or "localhost" in self.redis_url:
             problems.append("DATABASE_URL or REDIS_URL still points at localhost")
+        if self.refresh_cookie_samesite != "none":
+            problems.append("REFRESH_COOKIE_SAMESITE must be none for cross-origin production")
 
         if problems:
             raise ValueError(
