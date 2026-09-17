@@ -38,6 +38,7 @@ COPY --from=build /opt/venv /opt/venv
 COPY backend/app ./app
 COPY backend/alembic ./alembic
 COPY backend/alembic.ini ./alembic.ini
+COPY backend/start.sh ./start.sh
 COPY config ./config
 COPY data ./data
 COPY backend/tests/fixtures ./tests/fixtures
@@ -46,8 +47,9 @@ COPY backend/tests/fixtures ./tests/fixtures
 # the image did not create arrives root-owned, and the write fails at the first report.
 RUN useradd --create-home --uid 10001 tracefall \
     && mkdir -p /data/evidence /data/reports \
+    && chmod +x /srv/start.sh \
     && chown -R tracefall:tracefall /data /srv
 USER tracefall
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/srv/start.sh"]
