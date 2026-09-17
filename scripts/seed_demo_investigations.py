@@ -1,6 +1,7 @@
 import asyncio
 import os
 import sys
+import uuid
 from pathlib import Path
 
 # Add backend directory to sys.path
@@ -22,7 +23,7 @@ from app.db.models.enums import CaseStatus, Priority, AddressRole, ChainCode, An
 from app.worker import _run_pipeline
 from app.reports.generator import generate as generate_report, ReportFormat, ReportType
 
-ADMIN_EMAIL = os.environ.get("DEMO_ADMIN_EMAIL", "admin@example.gov")
+ADMIN_EMAIL = os.environ.get("DEMO_ADMIN_EMAIL", "investigator@tracefall.gov")
 
 COMPLEX_CASE_TITLE = "Complex Fund Movement"
 COMPLEX_ADDRESS = "T9yD14Nj9j7xAB4dbGeiX9h8uo1syi2Ves"
@@ -49,7 +50,7 @@ async def seed():
         complex_case = await session.scalar(select(Case).where(Case.title == COMPLEX_CASE_TITLE))
         if not complex_case:
             complex_case = Case(
-                case_number="TF-2026-0001",
+                case_number=f"TF-2026-{uuid.uuid4().hex[:4].upper()}",
                 title=COMPLEX_CASE_TITLE,
                 ncrp_reference="NCRP-2026-884920",
                 fir_reference="FIR-2026/0492",
@@ -138,7 +139,7 @@ async def seed():
         binance_case = await session.scalar(select(Case).where(Case.title == BINANCE_CASE_TITLE))
         if not binance_case:
             binance_case = Case(
-                case_number="TF-2026-0002",
+                case_number=f"TF-2026-{uuid.uuid4().hex[:4].upper()}",
                 title=BINANCE_CASE_TITLE,
                 ncrp_reference="NCRP-2026-773104",
                 fir_reference="FIR-2026/0311",
