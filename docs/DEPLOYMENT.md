@@ -5,6 +5,11 @@ filesystem evidence topology together, follow [`deploy/oracle/README.md`](../dep
 It uses Oracle Cloud Always Free compute with a persistent VM volume and Caddy HTTPS. The
 Compose walkthrough below remains the local/development reference.
 
+Railway is also supported by [`railway.json`](../railway.json), but Railway's current Free
+plan is credit-limited rather than an always-on free tier. Its trial is temporary and trial
+volumes are not a durable SIH production-storage solution; use the Railway procedure only
+for a short submission window and monitor usage.
+
 **Target: `docker compose up` and the system runs (NFR-11).** Everything else is future.
 
 **Verified 2026-09-05** on macOS/arm64, Docker 29.7.2, Compose v5.5.0. Five containers reach
