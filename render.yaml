@@ -8,7 +8,10 @@ services:
     plan: free
     region: oregon
     healthCheckPath: /api/health
-    dockerCommand: /bin/sh -c "alembic upgrade head && python -m app.cli load-labels && (python -m app.worker &) && exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+    dockerCommand: >-
+      alembic upgrade head && python -m app.cli load-labels &&
+      (python -m app.worker &) &&
+      exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
     envVars:
       - key: ENVIRONMENT
         value: production
